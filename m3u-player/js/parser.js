@@ -82,7 +82,14 @@
     return items;
   }
 
-  var api = { parse: parse, groups: groups, autoGroup: autoGroup };
+  // playlist-level header: #EXTM3U url-tvg="http://…/epg.xml.gz" (also x-tvg-url)
+  function header(text) {
+    var first = String(text).replace(/^\uFEFF/, '').split(/\r?\n/, 1)[0] || '';
+    var a = first.indexOf('#EXTM3U') === 0 ? attrs(first) : {};
+    return { tvgUrl: ((a['url-tvg'] || a['x-tvg-url'] || '').split(',')[0] || '').trim() };
+  }
+
+  var api = { parse: parse, groups: groups, autoGroup: autoGroup, header: header };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.M3U = api;
 })(this);

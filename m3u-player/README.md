@@ -23,6 +23,13 @@ Na telewizorze nie ma silnika, więc:
 Obsługiwane są też linki `acestream://<id>`. Własne playliście dodasz przyciskiem „+ Dodaj playlistę”.
 Po zmianie pliku w `playlists/` uruchom `npm run build:playlist` (generuje `js/builtin.js`).
 
+## EPG (program TV)
+- Źródło: **Ustawienia → Adres EPG** (XMLTV, `.xml` lub `.xml.gz`). Gdy puste, używany jest `url-tvg` / `x-tvg-url` z nagłówka playlisty.
+- Kanały są dopasowywane po `tvg-id`, a gdy go brak – po znormalizowanej nazwie (bez `HD`, `[PL]`, spacji, polskich znaków), np. „TVP 1 HD [PL]” ↔ „TVP 1”.
+- Na liście kanałów widać bieżący program, w odtwarzaczu pasek postępu i „następnie”, a **czerwony** (lub INFO w odtwarzaczu) otwiera program na 36 h z opisami.
+- Dane (tylko dopasowane kanały, okno −1 h…+36 h) są cache'owane lokalnie 6 h; „Odśwież EPG” wymusza pobranie.
+- Pliki `.gz` wymagają `DecompressionStream` (nowsze webOS); na starszych użyj nieskompresowanego XML. Serwer EPG musi zezwalać na CORS.
+
 ## Pilot
 | Przycisk | Przeglądarka | Odtwarzacz |
 |---|---|---|

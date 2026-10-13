@@ -32,3 +32,29 @@ assert.strictEqual(pl.length, 61);
 const g = Object.fromEntries(M3U.groups(pl).map(x => [x.name, x.count]));
 assert.ok(g['Kamery PL'] >= 10 && g['Sport'] >= 7 && !g['Bez grupy'], JSON.stringify(g));
 console.log('ace + autoGroup OK', JSON.stringify(g));
+
+// ---- EPG ----
+const Epg = require('../js/epg.js');
+assert.strictEqual(M3U.header('#EXTM3U url-tvg="http://e/x.xml.gz,http://y"\n').tvgUrl, 'http://e/x.xml.gz');
+assert.strictEqual(M3U.header('#EXTM3U\n').tvgUrl, '');
+assert.strictEqual(Epg.time('20240131203000 +0100'), Date.UTC(2024, 0, 31, 19, 30, 0));
+assert.strictEqual(Epg.norm('TVP 1 HD [PL]'), 'tvp1');
+assert.strictEqual(Epg.norm('Polsat Sport Premium 1'), 'polsatsportpremium1');
+const NOW = Date.UTC(2024, 0, 31, 20, 0, 0);
+const xml = `<?xml version="1.0"?><tv>
+<channel id="TVP1.pl"><display-name lang="pl">TVP 1</display-name></channel>
+<channel id="x"><display-name>Other</display-name></channel>
+<programme start="20240131185000 +0000" stop="20240131201500 +0000" channel="TVP1.pl"><title lang="pl">Wiadomo&#347;ci &amp; Sport</title><desc><![CDATA[Opis <b>1</b>]]></desc></programme>
+<programme start="20240131201500 +0000" stop="20240131213000 +0000" channel="TVP1.pl"><title>Film</title></programme>
+<programme start="20240203201500 +0000" stop="20240203213000 +0000" channel="TVP1.pl"><title>Za daleko</title></programme>
+<programme start="20240131201500 +0000" stop="20240131213000 +0000" channel="x"><title>Niechciany</title></programme>
+</tv>`;
+const st = Epg.parse(xml, [{ name: 'TVP 1 HD [PL]' }, { name: 'Brak', tvgId: 'nope' }], NOW);
+assert.deepStrictEqual(Object.keys(st.progs), ['TVP1.pl']);
+const nn = Epg.nowNext(st, { name: 'TVP 1 HD [PL]' }, NOW);
+assert.strictEqual(nn.now[2], 'Wiadomości & Sport');
+assert.strictEqual(nn.now[3], 'Opis <b>1</b>');
+assert.strictEqual(nn.next[2], 'Film');
+assert.strictEqual(Epg.list(st, { name: 'TVP 1' }, NOW).length, 2);
+assert.strictEqual(Epg.nowNext(st, { name: 'Brak' }, NOW).now, null);
+console.log('epg OK');

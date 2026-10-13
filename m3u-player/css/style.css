@@ -41,3 +41,13 @@ button.nav,input.nav,textarea.nav{background:#1c2536;color:#fff;font-size:28px;p
 .box input,.box textarea{width:100%}
 .row{display:flex;gap:20px}
 #plList{max-height:600px;overflow:hidden}
+
+.row.wrap{flex-wrap:wrap}
+.list li .name{display:flex;flex-direction:column;justify-content:center;line-height:1.15}
+.list li .name .epg{font-size:20px;color:#78909c;overflow:hidden;text-overflow:ellipsis}
+.list li.active .name .epg{color:#4a90b0}
+#osdEpg{font-size:24px;color:#cfd8dc;margin-top:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#osdBar{height:6px;margin-top:10px;background:rgba(255,255,255,.2);border-radius:3px;overflow:hidden}
+#osdBar i{display:block;height:100%;width:0;background:#4fc3f7}
+#guideList li .num{width:90px;text-align:left;color:#4fc3f7}
+#guideDesc{min-height:130px;max-height:130px;overflow:hidden;color:#b0bec5;font-size:24px;line-height:1.35}
