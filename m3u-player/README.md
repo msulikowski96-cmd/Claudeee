@@ -30,6 +30,10 @@ Po zmianie pliku w `playlists/` uruchom `npm run build:playlist` (generuje `js/b
 - Dane (tylko dopasowane kanały, okno −1 h…+36 h) są cache'owane lokalnie 6 h; „Odśwież EPG” wymusza pobranie.
 - Pliki `.gz` wymagają `DecompressionStream` (nowsze webOS); na starszych użyj nieskompresowanego XML. Serwer EPG musi zezwalać na CORS.
 
+## Sterowanie bez strzałek (PC / mysz / Magic Remote w trybie wskaźnika)
+- **Mysz / wskaźnik:** klik w grupę, kanał, playlistę lub pozycję programu; kółko przewija listy (w odtwarzaczu zmienia kanał); klik w obraz pokazuje pasek informacji.
+- **Klawisze zamienne:** `W A S D` = strzałki, `Q`/`E` = strona w górę/w dół, `R G Y B` = czerwony/zielony/żółty/niebieski, `I` = info, `P` = play, `X` = stop, `Backspace`/`Esc` = Back, spacja = pauza. W polach tekstowych litery piszą się normalnie.
+
 ## Pilot
 | Przycisk | Przeglądarka | Odtwarzacz |
 |---|---|---|

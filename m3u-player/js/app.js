@@ -87,6 +87,17 @@
     for (var i = this.top; i < end; i++) html += this.renderRow(this.data[i], i, i === this.idx && this.focused);
     this.el.innerHTML = html;
   };
+  // pointer support: click picks a row, wheel scrolls
+  List.prototype.bind = function (onPick) {
+    var self = this;
+    this.el.addEventListener('click', function (e) {
+      var li = e.target; while (li && li.parentNode !== self.el) li = li.parentNode;
+      if (!li) return;
+      self.idx = self.top + Array.prototype.indexOf.call(self.el.children, li);
+      self.render(); onPick(self.cur());
+    });
+    this.el.addEventListener('wheel', function (e) { e.preventDefault(); self.move(e.deltaY > 0 ? 3 : -3); if (self.onMove) self.onMove(); });
+  };
   List.prototype.focus = function (on) { this.focused = on; this.render(); };
   List.prototype.cur = function () { return this.data[this.idx]; };
 
@@ -206,6 +217,7 @@
 
   function setMode(m) {
     state.mode = m;
+    if (m === 'player' && document.activeElement && document.activeElement.blur) document.activeElement.blur();
     $('browser').classList.toggle('hidden', m === 'player');
     if (m === 'browser') { $('osd').classList.add('hidden'); chList.render(); setZone(state.zone); }
   }
@@ -219,6 +231,15 @@
     if (state.mode === 'player') showOsd();
   }
 
+  groupList.bind(function (g) {
+    setZone('groups'); state.group = g.id; groupList.render(); applyFilter(); setZone('channels');
+  });
+  chList.bind(function (c) { state.zone = 'channels'; playChannel(c); });
+  plList.bind(function (p) { closeDialog(); loadPlaylist(p); });
+  $('channels').addEventListener('wheel', function () { state.zone = 'channels'; chList.focus(true); groupList.focus(false); });
+  $('video').addEventListener('click', function () { if (state.mode === 'player') showOsd(); });
+  $('video').addEventListener('wheel', function (e) { if (state.mode === 'player') zap(e.deltaY > 0 ? 1 : -1); });
+
   Player.onError(function (msg) {
     var hint = state.playing && Ace.isAce(state.playing.url) && Ace.isLocal(settings)
       ? ' – ustaw adres silnika Ace Stream w Ustawieniach (niebieski → Ustawienia)' : '';
@@ -230,6 +251,8 @@
   var guideList = new List($('guideList'), 7, function (p, i, f) {
     return '<li class="' + (f ? 'focus' : '') + (i === 0 && p[0] <= Date.now() ? ' active' : '') + '"><span class="num">' + hm(p[0]) + '</span><span class="name"><span>' + esc(p[2]) + '</span></span></li>';
   });
+  guideList.bind(function () { guideDesc(); });
+  guideList.onMove = function () { guideDesc(); };
   function guideDesc() { var p = guideList.cur(); $('guideDesc').textContent = p ? (hm(p[0]) + '–' + hm(p[1]) + (p[3] ? ' · ' + p[3] : '')) : ''; }
   function openGuide(c) {
     if (!c) return;
@@ -335,6 +358,7 @@
 
   function onBrowserKey(e) {
     var k = e.keyCode, z = state.zone;
+    if ((k === KEY.BACK || k === KEY.ESC) && z === 'search') { setZone('channels'); return; }
     if (k === KEY.BACK || k === KEY.ESC) {
       if (state.playing) { setMode('player'); showOsd(); Player.el.paused && Player.el.play(); }
       else if (window.webOS && webOS.platformBack) webOS.platformBack();
@@ -394,8 +418,19 @@
     }
   }
 
+  // Keyboard aliases for setups without a D-pad / colour keys (PC browser, small remotes)
+  var ALIAS = { w: KEY.UP, s: KEY.DOWN, a: KEY.LEFT, d: KEY.RIGHT, q: KEY.PGUP, e: KEY.PGDN,
+    r: KEY.RED, g: KEY.GREEN, y: KEY.YELLOW, b: KEY.BLUE, i: 457, p: KEY.PLAY, x: KEY.STOP, Backspace: KEY.BACK };
+  function aliased(e) {
+    var tag = e.target.tagName;
+    if ((tag === 'INPUT' || tag === 'TEXTAREA') && e.key !== 'Escape') return e;
+    var code = e.ctrlKey || e.altKey || e.metaKey ? 0 : ALIAS[e.key.length === 1 ? e.key.toLowerCase() : e.key];
+    return code ? { keyCode: code, target: e.target, key: e.key, preventDefault: function () { e.preventDefault(); } } : e;
+  }
+
   document.addEventListener('keydown', function (e) {
     var handled = true;
+    e = aliased(e);
     if (state.dialog) handled = onDialogKey(e);
     else if (state.mode === 'player') onPlayerKey(e);
     else onBrowserKey(e);
