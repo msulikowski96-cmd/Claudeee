@@ -1,0 +1,43 @@
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1920px;height:1080px;overflow:hidden;background:#000;color:#fff;font-family:"LG Smart UI",Arial,sans-serif;font-size:28px}
+video{position:fixed;inset:0;width:100%;height:100%;background:#000;object-fit:contain}
+.hidden{display:none!important}
+.screen{position:fixed;inset:0;display:flex;background:rgba(10,14,24,.96)}
+.screen.overlay{background:rgba(10,14,24,.88)}
+#sidebar{width:480px;padding:40px 30px;background:rgba(0,0,0,.35);display:flex;flex-direction:column}
+#sidebar h1{font-size:44px;margin-bottom:30px;color:#4fc3f7}
+#groups{flex:1;overflow:hidden}
+main{flex:1;padding:40px;display:flex;flex-direction:column;min-width:0}
+#toolbar{display:flex;align-items:center;gap:30px;margin-bottom:20px}
+#search{flex:1}
+#count{color:#90a4ae}
+#channels{flex:1;overflow:hidden}
+#hint,.small{color:#78909c;font-size:22px;margin-top:14px}
+.list{list-style:none}
+.list li{display:flex;align-items:center;gap:20px;height:76px;padding:0 20px;border-radius:10px;border:3px solid transparent;white-space:nowrap;overflow:hidden}
+.list li .name{flex:1;overflow:hidden;text-overflow:ellipsis}
+.list li img{width:80px;height:50px;object-fit:contain}
+.list li .fav{color:#ffca28}
+.list li .num{width:70px;color:#78909c;text-align:right}
+.list li.active .name{color:#4fc3f7}
+.nav{border:3px solid transparent;outline:none}
+.focus,.nav:focus{border-color:#4fc3f7!important;background:rgba(79,195,247,.22)!important}
+button.nav,input.nav,textarea.nav{background:#1c2536;color:#fff;font-size:28px;padding:14px 22px;border-radius:10px;font-family:inherit}
+.side-actions{display:flex;flex-direction:column;gap:12px}
+#osd{position:fixed;left:60px;right:60px;bottom:50px;display:flex;align-items:center;gap:30px;padding:24px 34px;background:rgba(0,0,0,.75);border-radius:16px}
+#osd img{width:120px;height:80px;object-fit:contain}
+#osd img:not([src]),#osd img[src=""]{display:none}
+#osd>div:nth-child(2){flex:1;min-width:0}
+#osdTitle{font-size:40px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#osdSub{font-size:24px;color:#90a4ae}
+#osdTime{font-size:30px;color:#cfd8dc}
+#spinner{position:fixed;top:50%;left:50%;width:90px;height:90px;margin:-45px;border:10px solid rgba(255,255,255,.2);border-top-color:#4fc3f7;border-radius:50%;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#toast{position:fixed;top:50px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.85);padding:16px 36px;border-radius:12px;border:2px solid #4fc3f7;max-width:1400px}
+.dialog{position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:10}
+.box{width:1100px;max-height:960px;background:#141b2b;padding:40px;border-radius:18px;display:flex;flex-direction:column;gap:18px}
+.box h2{color:#4fc3f7}
+.box label{display:flex;flex-direction:column;gap:8px;color:#90a4ae;font-size:24px}
+.box input,.box textarea{width:100%}
+.row{display:flex;gap:20px}
+#plList{max-height:600px;overflow:hidden}

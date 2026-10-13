@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<title>M3U Player</title>
+<meta name="viewport" content="width=1920, height=1080">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<video id="video" autoplay playsinline></video>
+
+<!-- Playlist browser -->
+<div id="browser" class="screen">
+  <aside id="sidebar">
+    <h1>M3U Player</h1>
+    <ul id="groups" class="list"></ul>
+    <div class="side-actions">
+      <button class="nav" id="btnPlaylists" data-act="playlists">Playlisty</button>
+      <button class="nav" id="btnAdd" data-act="add">+ Dodaj playlistę</button>
+    </div>
+  </aside>
+  <main>
+    <div id="toolbar">
+      <input id="search" class="nav" type="text" placeholder="Szukaj kanału…">
+      <span id="count"></span>
+    </div>
+    <ul id="channels" class="list"></ul>
+    <div id="hint">OK – odtwórz · ★ ZIELONY – ulubione · ŻÓŁTY – szukaj · BACK – zamknij</div>
+  </main>
+</div>
+
+<!-- Player overlay -->
+<div id="osd" class="hidden">
+  <img id="osdLogo" alt="">
+  <div>
+    <div id="osdTitle"></div>
+    <div id="osdSub"></div>
+  </div>
+  <div id="osdTime"></div>
+</div>
+<div id="spinner" class="hidden"></div>
+<div id="toast" class="hidden"></div>
+
+<!-- Dialogs -->
+<div id="dlgAdd" class="dialog hidden">
+  <div class="box">
+    <h2>Dodaj playlistę</h2>
+    <label>Nazwa<input id="addName" class="nav" type="text" placeholder="Moja lista"></label>
+    <label>Adres URL (M3U / M3U8)<input id="addUrl" class="nav" type="url" placeholder="http://…/playlist.m3u"></label>
+    <label>…lub wklej zawartość<textarea id="addText" class="nav" rows="4" placeholder="#EXTM3U&#10;#EXTINF:-1,Kanał&#10;http://…"></textarea></label>
+    <div class="row">
+      <button class="nav" id="addOk">Zapisz i wczytaj</button>
+      <button class="nav" id="addCancel">Anuluj</button>
+    </div>
+  </div>
+</div>
+<div id="dlgPlaylists" class="dialog hidden">
+  <div class="box">
+    <h2>Zapisane playlisty</h2>
+    <ul id="plList" class="list"></ul>
+    <div class="row"><button class="nav" id="plClose">Zamknij</button></div>
+    <div class="small">OK – wczytaj · CZERWONY – usuń</div>
+  </div>
+</div>
+
+<script src="js/parser.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/player.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

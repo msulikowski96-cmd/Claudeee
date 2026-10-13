@@ -1,0 +1,13 @@
+{
+  "id": "com.webosbrew.m3uplayer",
+  "version": "1.0.0",
+  "vendor": "webOS Brew",
+  "type": "web",
+  "main": "index.html",
+  "title": "M3U Player",
+  "icon": "images/icon.png",
+  "largeIcon": "images/largeIcon.png",
+  "bgColor": "#000000",
+  "disableBackHistoryAPI": true,
+  "uiRevision": 2
+}
