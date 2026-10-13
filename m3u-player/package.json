@@ -3,8 +3,9 @@
   "version": "1.0.0",
   "description": "M3U / M3U8 playlist player for LG webOS TV",
   "scripts": {
+    "build:playlist": "node tools/build-playlist.js",
     "test": "node test/parser.test.js",
-    "package": "ares-package .",
+    "package": "sh tools/package.sh",
     "install-tv": "ares-install --device tv com.webosbrew.m3uplayer_1.0.0_all.ipk",
     "launch": "ares-launch --device tv com.webosbrew.m3uplayer",
     "inspect": "ares-inspect --device tv --app com.webosbrew.m3uplayer --open"

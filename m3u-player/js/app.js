@@ -5,6 +5,9 @@
     CH_UP: 427, CH_DN: 428, PGUP: 33, PGDN: 34, PLAY: 415, PAUSE: 19, STOP: 413, FF: 417, RW: 412,
     RED: 403, GREEN: 404, YELLOW: 405, BLUE: 406 };
   var ROWS = 10;
+  var SIDE = ['btnPlaylists', 'btnAdd', 'btnSettings'];
+  var settings = Store.settings();
+  var epg = null; // parsed XMLTV store for the current playlist
 
   var state = {
     playlist: null, items: [], groups: [], group: '__all__', filter: '',
@@ -18,6 +21,54 @@
   function toast(msg, ms) {
     var t = $('toast'); t.textContent = msg; t.classList.remove('hidden');
     clearTimeout(toastT); toastT = setTimeout(function () { t.classList.add('hidden'); }, ms || 3000);
+  }
+
+  /* ---------- EPG ---------- */
+  function hm(t) { var d = new Date(t); return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2); }
+  function epgLine(c) {
+    if (!epg) return '';
+    var nn = Epg.nowNext(epg, c); if (!nn.now && !nn.next) return '';
+    var p = nn.now || nn.next;
+    return '<span class="epg">' + (nn.now ? '' : 'wkrótce ') + hm(p[0]) + ' ' + esc(p[2]) + '</span>';
+  }
+  function gunzip(buf, cb) {
+    if (typeof DecompressionStream === 'undefined') return cb(new Error('ta wersja webOS nie obsługuje .gz – użyj nieskompresowanego XML'));
+    try {
+      var ds = new DecompressionStream('gzip');
+      new Response(new Blob([buf]).stream().pipeThrough(ds)).text().then(function (t) { cb(null, t); }, cb);
+    } catch (e) { cb(e); }
+  }
+  function fetchEpg(url, cb) {
+    var x = new XMLHttpRequest(); x.open('GET', url, true); x.responseType = 'arraybuffer'; x.timeout = 120000;
+    x.onload = function () {
+      if (x.status < 200 || x.status >= 300) return cb(new Error('HTTP ' + x.status));
+      var u = new Uint8Array(x.response), gz = u[0] === 0x1f && u[1] === 0x8b;
+      if (gz) return gunzip(x.response, cb);
+      try { cb(null, new TextDecoder('utf-8').decode(u)); } catch (e) { cb(e); }
+    };
+    x.onerror = function () { cb(new Error('błąd sieci / CORS')); };
+    x.ontimeout = function () { cb(new Error('przekroczono czas')); };
+    x.send();
+  }
+  function loadEpg(pl, force) {
+    epg = null;
+    var url = settings.epg || (pl && pl.tvgUrl) || '';
+    if (!pl || !url) { chList.render(); return; }
+    var c = Store.epgCache(pl.id);
+    if (c && c.url === url && Date.now() - c.t < 6 * 3600e3 && !force) { epg = c; chList.render(); return; }
+    if (c && c.url === url) { epg = c; chList.render(); } // show stale data while refreshing
+    toast('Pobieranie EPG…', 4000);
+    fetchEpg(url, function (err, xml) {
+      if (state.playlist !== pl) return;
+      if (err) return toast('EPG: ' + err.message, 6000);
+      setTimeout(function () {
+        var st = Epg.parse(xml, state.items); st.url = url;
+        epg = st; chList.render(); Store.saveEpgCache(pl.id, st);
+        var n = Object.keys(st.progs).length;
+        toast(n ? 'EPG: dopasowano kanałów ' + n : 'EPG pobrany, ale żaden kanał nie pasuje (sprawdź tvg-id / nazwy)', 4000);
+        if (state.mode === 'player') showOsd();
+      }, 50);
+    });
   }
 
   /* ---------- windowed list ---------- */
@@ -47,7 +98,7 @@
     var playing = c.url === state.playingUrl;
     return '<li class="' + (f ? 'focus' : '') + (playing ? ' active' : '') + '"><span class="num">' + (c.n) + '</span>' +
       (c.logo ? '<img src="' + esc(c.logo) + '" onerror="this.style.visibility=\'hidden\'">' : '<img style="visibility:hidden">') +
-      '<span class="name">' + esc(c.name) + '</span>' + fav + '</li>';
+      '<span class="name"><span>' + esc(c.name) + '</span>' + epgLine(c) + '</span>' + fav + '</li>';
   });
   var plList = new List($('plList'), 7, function (p, i, f) {
     return '<li class="' + (f ? 'focus' : '') + '"><span class="name">' + esc(p.name) + '</span><span class="num">' + (p.url ? 'URL' : 'tekst') + '</span></li>';
@@ -68,7 +119,8 @@
     state.playlist = pl;
     toast('Wczytywanie: ' + pl.name + '…', 15000);
     var done = function (text, fromCache) {
-      var items = M3U.parse(text);
+      pl.tvgUrl = M3U.header(text).tvgUrl;
+      var items = M3U.autoGroup(M3U.parse(text));
       if (!items.length) { toast('Playlista jest pusta lub niepoprawna'); return; }
       items.forEach(function (it, i) { it.n = i + 1; });
       state.items = items;
@@ -79,6 +131,7 @@
       refreshGroups(); applyFilter();
       toast((fromCache ? '(offline) ' : '') + 'Załadowano kanałów: ' + items.length);
       setZone('channels');
+      loadEpg(pl);
     };
     if (pl.text) return done(pl.text);
     fetchText(pl.url, function (err, text) {
@@ -113,17 +166,15 @@
     state.zone = z;
     groupList.focus(z === 'groups');
     chList.focus(z === 'channels');
-    ['search', 'btnPlaylists', 'btnAdd'].forEach(function (id) { $(id).blur(); });
-    if (z === 'search') $('search').focus();
-    if (z === 'btnPlaylists') $('btnPlaylists').focus();
-    if (z === 'btnAdd') $('btnAdd').focus();
+    ['search'].concat(SIDE).forEach(function (id) { $(id).blur(); });
+    if (z === 'search' || SIDE.indexOf(z) >= 0) $(z).focus();
   }
 
   /* ---------- playback ---------- */
   function playChannel(c) {
     if (!c) return;
     state.playing = c; state.playingUrl = c.url;
-    Player.play(c.url);
+    Player.play(Ace.resolve(c.url, settings));
     Store.saveLast({ id: state.playlist && state.playlist.id, url: c.url });
     showOsd();
     setMode('player');
@@ -142,10 +193,16 @@
     $('osdTitle').textContent = c.n + '. ' + c.name;
     $('osdSub').textContent = c.group + (state.favs[c.url] ? '  ★' : '');
     var l = $('osdLogo'); if (c.logo) l.src = c.logo; else l.removeAttribute('src');
+    var nn = epg ? Epg.nowNext(epg, c) : {}, p = nn.now, line = '';
+    if (p) line = hm(p[0]) + '–' + hm(p[1]) + '  ' + p[2] + (nn.next ? '   ▸ ' + hm(nn.next[0]) + ' ' + nn.next[2] : '');
+    else if (nn.next) line = 'Następnie: ' + hm(nn.next[0]) + ' ' + nn.next[2];
+    $('osdEpg').textContent = line;
+    $('osdBar').style.display = p ? '' : 'none';
+    if (p) $('osdBar').firstChild.style.width = Math.max(0, Math.min(100, (Date.now() - p[0]) / (p[1] - p[0]) * 100)) + '%';
     tick(); $('osd').classList.remove('hidden');
     clearTimeout(osdT); osdT = setTimeout(function () { $('osd').classList.add('hidden'); }, 4000);
   }
-  function tick() { var d = new Date(); $('osdTime').textContent = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2); }
+  function tick() { if (epg) { chList.render(); }  var d = new Date(); $('osdTime').textContent = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2); }
 
   function setMode(m) {
     state.mode = m;
@@ -163,14 +220,30 @@
   }
 
   Player.onError(function (msg) {
-    toast('Błąd odtwarzania: ' + msg, 5000);
+    var hint = state.playing && Ace.isAce(state.playing.url) && Ace.isLocal(settings)
+      ? ' – ustaw adres silnika Ace Stream w Ustawieniach (niebieski → Ustawienia)' : '';
+    toast('Błąd odtwarzania: ' + msg + hint, 7000);
     if (state.mode === 'player') { setMode('browser'); setZone('channels'); }
   });
+
+  /* ---------- program guide ---------- */
+  var guideList = new List($('guideList'), 7, function (p, i, f) {
+    return '<li class="' + (f ? 'focus' : '') + (i === 0 && p[0] <= Date.now() ? ' active' : '') + '"><span class="num">' + hm(p[0]) + '</span><span class="name"><span>' + esc(p[2]) + '</span></span></li>';
+  });
+  function guideDesc() { var p = guideList.cur(); $('guideDesc').textContent = p ? (hm(p[0]) + '–' + hm(p[1]) + (p[3] ? ' · ' + p[3] : '')) : ''; }
+  function openGuide(c) {
+    if (!c) return;
+    var l = epg ? Epg.list(epg, c) : [];
+    if (!l.length) return toast(epg ? 'Brak programu dla tego kanału' : 'EPG niedostępny – ustaw adres w Ustawieniach', 3000);
+    $('guideTitle').textContent = 'Program TV – ' + c.name;
+    openDialog('Guide'); guideList.set(l); guideList.focus(true); guideDesc();
+  }
 
   /* ---------- dialogs ---------- */
   function openDialog(name) {
     state.dialog = name; $('dlg' + name).classList.remove('hidden');
     if (name === 'Add') { $('addName').focus(); }
+    if (name === 'Settings') { $('setEngine').value = settings.engine; $('setEpg').value = settings.epg; renderMode(); $('setEngine').focus(); }
     if (name === 'Playlists') { plList.set(Store.playlists()); plList.focus(true); }
   }
   function closeDialog() {
@@ -188,19 +261,49 @@
     var all = Store.playlists(); all.push(pl); Store.savePlaylists(all);
     closeDialog(); loadPlaylist(pl);
   };
+  function renderMode() { $('setMode').textContent = 'Tryb Ace: ' + (settings.aceMode === 'ts' ? 'TS (getstream)' : 'HLS (manifest)'); }
+  $('setMode').onclick = function () { settings.aceMode = settings.aceMode === 'ts' ? 'hls' : 'ts'; renderMode(); };
+  $('setRestore').onclick = function () {
+    var all = Store.playlists();
+    BUILTIN_PLAYLISTS.forEach(function (b) { if (!all.some(function (p) { return p.id === b.id; })) all.push(b); });
+    Store.savePlaylists(all); toast('Przywrócono wbudowane playlisty', 2000);
+  };
+  $('setRefresh').onclick = function () {
+    settings.epg = $('setEpg').value.trim(); Store.saveSettings(settings); closeDialog(); loadEpg(state.playlist, true);
+  };
+  $('setCancel').onclick = function () { settings = Store.settings(); closeDialog(); };
+  $('setOk').onclick = function () {
+    var oldEpg = settings.epg;
+    settings.engine = $('setEngine').value.trim() || '127.0.0.1:6878';
+    settings.epg = $('setEpg').value.trim();
+    Store.saveSettings(settings);
+    if (settings.epg !== oldEpg) loadEpg(state.playlist, true); toast('Zapisano ustawienia', 2000); closeDialog();
+  };
+  $('btnSettings').onclick = function () { openDialog('Settings'); };
   $('btnAdd').onclick = function () { openDialog('Add'); };
   $('btnPlaylists').onclick = function () { openDialog('Playlists'); };
+  // pointer (Magic Remote) can focus the search box without going through setZone
+  $('search').addEventListener('focus', function () {
+    if (state.zone !== 'search') { state.zone = 'search'; groupList.focus(false); chList.focus(false); }
+  });
   $('search').addEventListener('input', function () { state.filter = this.value; applyFilter(); });
 
   /* ---------- key handling ---------- */
   var dlgFocus = function () {
-    var order = ['addName', 'addUrl', 'addText', 'addOk', 'addCancel'];
+    var order = state.dialog === 'Settings' ? ['setEngine', 'setEpg', 'setMode', 'setRefresh', 'setRestore', 'setOk', 'setCancel']
+      : ['addName', 'addUrl', 'addText', 'addOk', 'addCancel'];
     return { order: order, i: order.indexOf(document.activeElement && document.activeElement.id) };
   };
 
   function onDialogKey(e) {
     var k = e.keyCode;
     if (k === KEY.BACK || k === KEY.ESC) { closeDialog(); return true; }
+    if (state.dialog === 'Guide') {
+      if (k === KEY.UP) guideList.move(-1); else if (k === KEY.DOWN) guideList.move(1);
+      else if (k === KEY.PGUP) guideList.move(-7); else if (k === KEY.PGDN) guideList.move(7);
+      else if (k === KEY.ENTER || k === KEY.RED) closeDialog();
+      guideDesc(); return true;
+    }
     if (state.dialog === 'Playlists') {
       if (k === KEY.UP) plList.move(-1); else if (k === KEY.DOWN) plList.move(1);
       else if (k === KEY.ENTER) { var p = plList.cur(); if (p) { closeDialog(); loadPlaylist(p); } else closeDialog(); }
@@ -211,7 +314,7 @@
       }
       return true;
     }
-    if (state.dialog === 'Add') {
+    if (state.dialog === 'Add' || state.dialog === 'Settings') {
       var f = dlgFocus(), tag = document.activeElement && document.activeElement.tagName;
       var inText = tag === 'TEXTAREA' || tag === 'INPUT';
       if (k === KEY.UP || k === KEY.DOWN) {
@@ -221,7 +324,8 @@
       }
       if ((k === KEY.LEFT || k === KEY.RIGHT) && !inText) {
         var n2 = f.i + (k === KEY.RIGHT ? 1 : -1);
-        if (n2 >= 3 && n2 <= 4) $(f.order[n2]).focus();
+        var lo = state.dialog === 'Add' ? 3 : 2;
+        if (n2 >= lo && n2 < f.order.length) $(f.order[n2]).focus();
         return true;
       }
       if (k === KEY.ENTER && !inText) { document.activeElement.click(); return true; }
@@ -238,6 +342,7 @@
       return;
     }
     if (k === KEY.YELLOW) { setZone('search'); return; }
+    if (k === KEY.RED && z === 'channels') { openGuide(chList.cur()); return; }
     if (k === KEY.GREEN && z === 'channels') { toggleFav(chList.cur()); return; }
     if (k === KEY.BLUE) { openDialog('Playlists'); return; }
     if (z === 'search') {
@@ -247,15 +352,16 @@
     }
     if (z === 'groups') {
       if (k === KEY.UP) groupList.move(-1);
-      else if (k === KEY.DOWN) { if (groupList.idx === groupList.data.length - 1) setZone('btnPlaylists'); else groupList.move(1); }
+      else if (k === KEY.DOWN) { if (groupList.idx === groupList.data.length - 1) setZone(SIDE[0]); else groupList.move(1); }
       else if (k === KEY.PGUP) groupList.move(-ROWS); else if (k === KEY.PGDN) groupList.move(ROWS);
       else if (k === KEY.RIGHT) setZone('channels');
       else if (k === KEY.ENTER) { state.group = groupList.cur().id; groupList.render(); applyFilter(); setZone('channels'); }
       return;
     }
-    if (z === 'btnPlaylists' || z === 'btnAdd') {
-      if (k === KEY.UP) setZone(z === 'btnAdd' ? 'btnPlaylists' : 'groups');
-      else if (k === KEY.DOWN && z === 'btnPlaylists') setZone('btnAdd');
+    if (SIDE.indexOf(z) >= 0) {
+      var si = SIDE.indexOf(z);
+      if (k === KEY.UP) setZone(si === 0 ? 'groups' : SIDE[si - 1]);
+      else if (k === KEY.DOWN && si < SIDE.length - 1) setZone(SIDE[si + 1]);
       else if (k === KEY.RIGHT) setZone('channels');
       else if (k === KEY.ENTER) $(z).click();
       return;
@@ -283,6 +389,7 @@
       case 32: Player.toggle(); break;
       case KEY.STOP: Player.stop(); state.playing = state.playingUrl = null; setMode('browser'); break;
       case KEY.GREEN: toggleFav(state.playing); break;
+      case KEY.RED: case 457: openGuide(state.playing); break;
       case KEY.BLUE: setMode('browser'); openDialog('Playlists'); break;
     }
   }
@@ -301,8 +408,13 @@
 
   /* ---------- boot ---------- */
   var pls = Store.playlists(), last = Store.last();
+  if (!settings.seeded) {
+    BUILTIN_PLAYLISTS.forEach(function (b) { if (!pls.some(function (p) { return p.id === b.id; })) pls.push(b); });
+    Store.savePlaylists(pls); settings.seeded = true; Store.saveSettings(settings);
+  }
   var start = pls.filter(function (p) { return p.id === last.id; })[0] || pls[0];
   setMode('browser'); setZone('channels');
   if (start) loadPlaylist(start);
   else { toast('Dodaj pierwszą playlistę (przycisk w lewym menu)', 6000); setZone('btnAdd'); }
+  if (start && start.builtin && Ace.isLocal(settings)) toast('Ustaw adres silnika Ace Stream: Ustawienia w lewym menu', 8000);
 })();

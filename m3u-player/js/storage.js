@@ -9,6 +9,13 @@ var Store = (function () {
     saveFavorites: function (f) { set('favs', f); },
     last: function () { return get('last', {}); },
     saveLast: function (l) { set('last', l); },
+    settings: function () {
+      var d = get('settings', {});
+      return { engine: d.engine || '127.0.0.1:6878', aceMode: d.aceMode || 'hls', epg: d.epg || '', seeded: !!d.seeded };
+    },
+    saveSettings: function (s) { set('settings', s); },
+    epgCache: function (id) { return get('epg.' + id, null); },
+    saveEpgCache: function (id, d) { set('epg.' + id, d); },
     cache: function (id) { return get('cache.' + id, null); },
     saveCache: function (id, text) { set('cache.' + id, text); }
   };

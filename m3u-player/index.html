@@ -17,6 +17,7 @@
     <div class="side-actions">
       <button class="nav" id="btnPlaylists" data-act="playlists">Playlisty</button>
       <button class="nav" id="btnAdd" data-act="add">+ Dodaj playlistę</button>
+      <button class="nav" id="btnSettings">Ustawienia</button>
     </div>
   </aside>
   <main>
@@ -25,7 +26,7 @@
       <span id="count"></span>
     </div>
     <ul id="channels" class="list"></ul>
-    <div id="hint">OK – odtwórz · ★ ZIELONY – ulubione · ŻÓŁTY – szukaj · BACK – zamknij</div>
+    <div id="hint">OK – odtwórz · ★ ZIELONY – ulubione · ŻÓŁTY – szukaj · CZERWONY – program TV · BACK – zamknij</div>
   </main>
 </div>
 
@@ -35,6 +36,8 @@
   <div>
     <div id="osdTitle"></div>
     <div id="osdSub"></div>
+    <div id="osdEpg"></div>
+    <div id="osdBar"><i></i></div>
   </div>
   <div id="osdTime"></div>
 </div>
@@ -54,6 +57,33 @@
     </div>
   </div>
 </div>
+<div id="dlgSettings" class="dialog hidden">
+  <div class="box">
+    <h2>Ustawienia</h2>
+    <label>Adres silnika Ace Stream (IP:port) – komputer / box w sieci domowej, NIE telewizor
+      <input id="setEngine" class="nav" type="text" placeholder="192.168.1.50:6878"></label>
+    <label>Adres EPG (XMLTV, .xml / .xml.gz) – puste = z nagłówka playlisty (url-tvg)
+      <input id="setEpg" class="nav" type="url" placeholder="http://…/epg.xml.gz"></label>
+    <div class="row wrap">
+      <button class="nav" id="setMode"></button>
+      <button class="nav" id="setRefresh">Odśwież EPG</button>
+      <button class="nav" id="setRestore">Przywróć wbudowaną playlistę</button>
+    </div>
+    <div class="row">
+      <button class="nav" id="setOk">Zapisz</button>
+      <button class="nav" id="setCancel">Anuluj</button>
+    </div>
+    <div class="small">HLS – zalecany na webOS · TS – surowy strumień (getstream)</div>
+  </div>
+</div>
+<div id="dlgGuide" class="dialog hidden">
+  <div class="box">
+    <h2 id="guideTitle">Program TV</h2>
+    <ul id="guideList" class="list"></ul>
+    <div id="guideDesc"></div>
+    <div class="small">↑↓ – przewijanie · BACK – zamknij</div>
+  </div>
+</div>
 <div id="dlgPlaylists" class="dialog hidden">
   <div class="box">
     <h2>Zapisane playlisty</h2>
@@ -63,7 +93,10 @@
   </div>
 </div>
 
+<script src="js/builtin.js"></script>
 <script src="js/parser.js"></script>
+<script src="js/ace.js"></script>
+<script src="js/epg.js"></script>
 <script src="js/storage.js"></script>
 <script src="js/player.js"></script>
 <script src="js/app.js"></script>

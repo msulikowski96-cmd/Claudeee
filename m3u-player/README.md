@@ -10,6 +10,26 @@ Przeznaczona do instalacji na telewizorze z [webOS Brew / Homebrew Channel](http
 - Natywne odtwarzanie HLS / TS / MP4 w `<video>`, OSD, przełączanie kanałów
 - Pełna obsługa pilota Magic Remote
 
+## Playlista Ace Stream (wbudowana)
+Aplikacja zawiera playlistę `playlists/polska_ace_stream2.m3u8` (61 kanałów, wczytywana przy pierwszym uruchomieniu,
+automatycznie pogrupowana: TVP, TVN, Polsat, Sport, Informacje, Muzyka, Filmy i seriale, Kamery PL, Inne).
+
+Adresy w tej playliście wskazują `127.0.0.1:6878` – czyli silnik Ace Stream na **tym samym urządzeniu**.
+Na telewizorze nie ma silnika, więc:
+1. Uruchom Ace Stream Engine na komputerze / Android boxie / NAS w tej samej sieci (port 6878, dostęp z LAN).
+2. W aplikacji: **Ustawienia → adres silnika** (np. `192.168.1.50:6878`).
+3. Tryb **HLS** (domyślny, `/ace/manifest.m3u8`) jest natywnie odtwarzany przez webOS; **TS** używa `/ace/getstream`.
+
+Obsługiwane są też linki `acestream://<id>`. Własne playliście dodasz przyciskiem „+ Dodaj playlistę”.
+Po zmianie pliku w `playlists/` uruchom `npm run build:playlist` (generuje `js/builtin.js`).
+
+## EPG (program TV)
+- Źródło: **Ustawienia → Adres EPG** (XMLTV, `.xml` lub `.xml.gz`). Gdy puste, używany jest `url-tvg` / `x-tvg-url` z nagłówka playlisty.
+- Kanały są dopasowywane po `tvg-id`, a gdy go brak – po znormalizowanej nazwie (bez `HD`, `[PL]`, spacji, polskich znaków), np. „TVP 1 HD [PL]” ↔ „TVP 1”.
+- Na liście kanałów widać bieżący program, w odtwarzaczu pasek postępu i „następnie”, a **czerwony** (lub INFO w odtwarzaczu) otwiera program na 36 h z opisami.
+- Dane (tylko dopasowane kanały, okno −1 h…+36 h) są cache'owane lokalnie 6 h; „Odśwież EPG” wymusza pobranie.
+- Pliki `.gz` wymagają `DecompressionStream` (nowsze webOS); na starszych użyj nieskompresowanego XML. Serwer EPG musi zezwalać na CORS.
+
 ## Pilot
 | Przycisk | Przeglądarka | Odtwarzacz |
 |---|---|---|

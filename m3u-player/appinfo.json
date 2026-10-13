@@ -9,5 +9,6 @@
   "largeIcon": "images/largeIcon.png",
   "bgColor": "#000000",
   "disableBackHistoryAPI": true,
-  "uiRevision": 2
+  "uiRevision": 2,
+  "requiredACG": []
 }
