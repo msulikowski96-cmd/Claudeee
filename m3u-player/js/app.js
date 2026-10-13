@@ -5,6 +5,8 @@
     CH_UP: 427, CH_DN: 428, PGUP: 33, PGDN: 34, PLAY: 415, PAUSE: 19, STOP: 413, FF: 417, RW: 412,
     RED: 403, GREEN: 404, YELLOW: 405, BLUE: 406 };
   var ROWS = 10;
+  var SIDE = ['btnPlaylists', 'btnAdd', 'btnSettings'];
+  var settings = Store.settings();
 
   var state = {
     playlist: null, items: [], groups: [], group: '__all__', filter: '',
@@ -68,7 +70,7 @@
     state.playlist = pl;
     toast('Wczytywanie: ' + pl.name + '…', 15000);
     var done = function (text, fromCache) {
-      var items = M3U.parse(text);
+      var items = M3U.autoGroup(M3U.parse(text));
       if (!items.length) { toast('Playlista jest pusta lub niepoprawna'); return; }
       items.forEach(function (it, i) { it.n = i + 1; });
       state.items = items;
@@ -113,17 +115,15 @@
     state.zone = z;
     groupList.focus(z === 'groups');
     chList.focus(z === 'channels');
-    ['search', 'btnPlaylists', 'btnAdd'].forEach(function (id) { $(id).blur(); });
-    if (z === 'search') $('search').focus();
-    if (z === 'btnPlaylists') $('btnPlaylists').focus();
-    if (z === 'btnAdd') $('btnAdd').focus();
+    ['search'].concat(SIDE).forEach(function (id) { $(id).blur(); });
+    if (z === 'search' || SIDE.indexOf(z) >= 0) $(z).focus();
   }
 
   /* ---------- playback ---------- */
   function playChannel(c) {
     if (!c) return;
     state.playing = c; state.playingUrl = c.url;
-    Player.play(c.url);
+    Player.play(Ace.resolve(c.url, settings));
     Store.saveLast({ id: state.playlist && state.playlist.id, url: c.url });
     showOsd();
     setMode('player');
@@ -163,7 +163,9 @@
   }
 
   Player.onError(function (msg) {
-    toast('Błąd odtwarzania: ' + msg, 5000);
+    var hint = state.playing && Ace.isAce(state.playing.url) && Ace.isLocal(settings)
+      ? ' – ustaw adres silnika Ace Stream w Ustawieniach (niebieski → Ustawienia)' : '';
+    toast('Błąd odtwarzania: ' + msg + hint, 7000);
     if (state.mode === 'player') { setMode('browser'); setZone('channels'); }
   });
 
@@ -171,6 +173,7 @@
   function openDialog(name) {
     state.dialog = name; $('dlg' + name).classList.remove('hidden');
     if (name === 'Add') { $('addName').focus(); }
+    if (name === 'Settings') { $('setEngine').value = settings.engine; renderMode(); $('setEngine').focus(); }
     if (name === 'Playlists') { plList.set(Store.playlists()); plList.focus(true); }
   }
   function closeDialog() {
@@ -188,13 +191,27 @@
     var all = Store.playlists(); all.push(pl); Store.savePlaylists(all);
     closeDialog(); loadPlaylist(pl);
   };
+  function renderMode() { $('setMode').textContent = 'Tryb Ace: ' + (settings.aceMode === 'ts' ? 'TS (getstream)' : 'HLS (manifest)'); }
+  $('setMode').onclick = function () { settings.aceMode = settings.aceMode === 'ts' ? 'hls' : 'ts'; renderMode(); };
+  $('setRestore').onclick = function () {
+    var all = Store.playlists();
+    BUILTIN_PLAYLISTS.forEach(function (b) { if (!all.some(function (p) { return p.id === b.id; })) all.push(b); });
+    Store.savePlaylists(all); toast('Przywrócono wbudowane playlisty', 2000);
+  };
+  $('setCancel').onclick = function () { settings = Store.settings(); closeDialog(); };
+  $('setOk').onclick = function () {
+    settings.engine = $('setEngine').value.trim() || '127.0.0.1:6878';
+    Store.saveSettings(settings); toast('Zapisano ustawienia', 2000); closeDialog();
+  };
+  $('btnSettings').onclick = function () { openDialog('Settings'); };
   $('btnAdd').onclick = function () { openDialog('Add'); };
   $('btnPlaylists').onclick = function () { openDialog('Playlists'); };
   $('search').addEventListener('input', function () { state.filter = this.value; applyFilter(); });
 
   /* ---------- key handling ---------- */
   var dlgFocus = function () {
-    var order = ['addName', 'addUrl', 'addText', 'addOk', 'addCancel'];
+    var order = state.dialog === 'Settings' ? ['setEngine', 'setMode', 'setRestore', 'setOk', 'setCancel']
+      : ['addName', 'addUrl', 'addText', 'addOk', 'addCancel'];
     return { order: order, i: order.indexOf(document.activeElement && document.activeElement.id) };
   };
 
@@ -211,7 +228,7 @@
       }
       return true;
     }
-    if (state.dialog === 'Add') {
+    if (state.dialog === 'Add' || state.dialog === 'Settings') {
       var f = dlgFocus(), tag = document.activeElement && document.activeElement.tagName;
       var inText = tag === 'TEXTAREA' || tag === 'INPUT';
       if (k === KEY.UP || k === KEY.DOWN) {
@@ -221,7 +238,8 @@
       }
       if ((k === KEY.LEFT || k === KEY.RIGHT) && !inText) {
         var n2 = f.i + (k === KEY.RIGHT ? 1 : -1);
-        if (n2 >= 3 && n2 <= 4) $(f.order[n2]).focus();
+        var lo = state.dialog === 'Add' ? 3 : 1;
+        if (n2 >= lo && n2 <= 4 && !(state.dialog === 'Settings' && f.i === 2 && k === KEY.LEFT && false)) $(f.order[n2]).focus();
         return true;
       }
       if (k === KEY.ENTER && !inText) { document.activeElement.click(); return true; }
@@ -247,15 +265,16 @@
     }
     if (z === 'groups') {
       if (k === KEY.UP) groupList.move(-1);
-      else if (k === KEY.DOWN) { if (groupList.idx === groupList.data.length - 1) setZone('btnPlaylists'); else groupList.move(1); }
+      else if (k === KEY.DOWN) { if (groupList.idx === groupList.data.length - 1) setZone(SIDE[0]); else groupList.move(1); }
       else if (k === KEY.PGUP) groupList.move(-ROWS); else if (k === KEY.PGDN) groupList.move(ROWS);
       else if (k === KEY.RIGHT) setZone('channels');
       else if (k === KEY.ENTER) { state.group = groupList.cur().id; groupList.render(); applyFilter(); setZone('channels'); }
       return;
     }
-    if (z === 'btnPlaylists' || z === 'btnAdd') {
-      if (k === KEY.UP) setZone(z === 'btnAdd' ? 'btnPlaylists' : 'groups');
-      else if (k === KEY.DOWN && z === 'btnPlaylists') setZone('btnAdd');
+    if (SIDE.indexOf(z) >= 0) {
+      var si = SIDE.indexOf(z);
+      if (k === KEY.UP) setZone(si === 0 ? 'groups' : SIDE[si - 1]);
+      else if (k === KEY.DOWN && si < SIDE.length - 1) setZone(SIDE[si + 1]);
       else if (k === KEY.RIGHT) setZone('channels');
       else if (k === KEY.ENTER) $(z).click();
       return;
@@ -301,8 +320,13 @@
 
   /* ---------- boot ---------- */
   var pls = Store.playlists(), last = Store.last();
+  if (!settings.seeded) {
+    BUILTIN_PLAYLISTS.forEach(function (b) { if (!pls.some(function (p) { return p.id === b.id; })) pls.push(b); });
+    Store.savePlaylists(pls); settings.seeded = true; Store.saveSettings(settings);
+  }
   var start = pls.filter(function (p) { return p.id === last.id; })[0] || pls[0];
   setMode('browser'); setZone('channels');
   if (start) loadPlaylist(start);
   else { toast('Dodaj pierwszą playlistę (przycisk w lewym menu)', 6000); setZone('btnAdd'); }
+  if (start && start.builtin && Ace.isLocal(settings)) toast('Ustaw adres silnika Ace Stream: Ustawienia w lewym menu', 8000);
 })();

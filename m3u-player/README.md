@@ -10,6 +10,19 @@ Przeznaczona do instalacji na telewizorze z [webOS Brew / Homebrew Channel](http
 - Natywne odtwarzanie HLS / TS / MP4 w `<video>`, OSD, przełączanie kanałów
 - Pełna obsługa pilota Magic Remote
 
+## Playlista Ace Stream (wbudowana)
+Aplikacja zawiera playlistę `playlists/polska_ace_stream2.m3u8` (61 kanałów, wczytywana przy pierwszym uruchomieniu,
+automatycznie pogrupowana: TVP, TVN, Polsat, Sport, Informacje, Muzyka, Filmy i seriale, Kamery PL, Inne).
+
+Adresy w tej playliście wskazują `127.0.0.1:6878` – czyli silnik Ace Stream na **tym samym urządzeniu**.
+Na telewizorze nie ma silnika, więc:
+1. Uruchom Ace Stream Engine na komputerze / Android boxie / NAS w tej samej sieci (port 6878, dostęp z LAN).
+2. W aplikacji: **Ustawienia → adres silnika** (np. `192.168.1.50:6878`).
+3. Tryb **HLS** (domyślny, `/ace/manifest.m3u8`) jest natywnie odtwarzany przez webOS; **TS** używa `/ace/getstream`.
+
+Obsługiwane są też linki `acestream://<id>`. Własne playliście dodasz przyciskiem „+ Dodaj playlistę”.
+Po zmianie pliku w `playlists/` uruchom `npm run build:playlist` (generuje `js/builtin.js`).
+
 ## Pilot
 | Przycisk | Przeglądarka | Odtwarzacz |
 |---|---|---|

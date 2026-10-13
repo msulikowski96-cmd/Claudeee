@@ -64,7 +64,25 @@
     return order.map(function (g) { return { name: g, count: map[g] }; });
   }
 
-  var api = { parse: parse, groups: groups };
+  var RULES = [
+    [/^poland\s*-/i, 'Kamery PL'],
+    [/sport|fight/i, 'Sport'],
+    [/news|info|\b24\b/i, 'Informacje'],
+    [/music|muzyka|mtv/i, 'Muzyka'],
+    [/kino|film|comedy|seriale|doku|historia|cafe|rozrywka|kultura|nickelodeon|abc/i, 'Filmy i seriale'],
+    [/tvp/i, 'TVP'], [/tvn/i, 'TVN'], [/polsat/i, 'Polsat']
+  ];
+  // Assigns groups by channel name when the playlist has no group-title at all.
+  function autoGroup(items) {
+    if (!items.every(function (it) { return it.group === 'Bez grupy'; })) return items;
+    items.forEach(function (it) {
+      for (var i = 0; i < RULES.length; i++) if (RULES[i][0].test(it.name)) { it.group = RULES[i][1]; return; }
+      it.group = 'Inne';
+    });
+    return items;
+  }
+
+  var api = { parse: parse, groups: groups, autoGroup: autoGroup };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.M3U = api;
 })(this);
