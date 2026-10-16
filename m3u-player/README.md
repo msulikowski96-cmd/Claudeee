@@ -31,7 +31,8 @@ Po zmianie pliku w `playlists/` uruchom `npm run build:playlist` (generuje `js/b
 - Pliki `.gz` wymagają `DecompressionStream` (nowsze webOS); na starszych użyj nieskompresowanego XML. Serwer EPG musi zezwalać na CORS.
 
 ## Gdy kanały się nie łączą
-1. **Ustawienia → „Testuj silnik”** – sprawdza, czy pod podanym adresem w ogóle odpowiada Ace Stream Engine.
+1. **Ustawienia → „Testuj silnik”** – sprawdza, czy pod podanym adresem odpowiada Ace Stream Engine oraz czy zezwala na CORS (potrzebny `hls.js`); podpowiada, czy przeglądarka gra HLS natywnie.
+   - `127.0.0.1:6878` w aplikacji jest poprawne tylko wtedy, gdy silnik działa **na tym samym urządzeniu co przeglądarka**. Strona otwarta na telefonie z `http://IP_PC:8080` i silnik na PC → wpisz `IP_PC:6878`, nie `127.0.0.1`.
 2. Adres `127.0.0.1:6878` z playlisty działa tylko na urządzeniu, na którym stoi silnik. Na TV wpisz **IP komputera/boxa/NAS-a** z silnikiem.
 3. Silnik musi nasłuchiwać w LAN, a nie tylko na localhost: Ace Stream na PC uruchom z opcją `--bind-all` (albo użyj obrazu Docker z proxy HTTP) i otwórz port 6878 w zaporze.
 4. Pierwsze uruchomienie kanału może trwać 10–30 s (silnik szuka peerów). Komunikat błędu pokazuje, z którym hostem aplikacja próbowała się połączyć.

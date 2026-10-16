@@ -326,15 +326,23 @@
   $('setTest').onclick = function () {
     var host = ($('setEngine').value.trim() || '127.0.0.1:6878').replace(/^https?:\/\//i, '').replace(/\/+$/, '');
     if (!window.fetch) return toast('Ten webOS nie obsługuje testu – spróbuj odtworzyć kanał', 4000);
+    var url = 'http://' + host + '/webui/api/service?method=get_version';
+    var native = !!document.createElement('video').canPlayType('application/vnd.apple.mpegurl');
     toast('Łączenie z ' + host + '…', 8000);
-    var ctl = window.AbortController ? new AbortController() : null, t = setTimeout(function () { ctl && ctl.abort(); }, 6000);
-    // no-cors: we only care whether the TCP/HTTP connection succeeds, not about reading the reply
-    fetch('http://' + host + '/webui/api/service?method=get_version', { mode: 'no-cors', cache: 'no-store', signal: ctl && ctl.signal })
-      .then(function () { clearTimeout(t); toast('✔ Silnik Ace Stream odpowiada: ' + host, 5000); })
-      .catch(function () {
-        clearTimeout(t);
-        toast('✘ Brak połączenia z ' + host + '. Sprawdź adres/port, zaporę oraz czy silnik nasłuchuje w sieci LAN (nie tylko 127.0.0.1).', 9000);
-      });
+    function probe(mode) {
+      var ctl = window.AbortController ? new AbortController() : null, t = setTimeout(function () { ctl && ctl.abort(); }, 6000);
+      return fetch(url, { mode: mode, cache: 'no-store', signal: ctl && ctl.signal }).then(function () { clearTimeout(t); }, function (e) { clearTimeout(t); throw e; });
+    }
+    // 1) reachable at all? (no-cors: only the connection matters)  2) may this page read the reply? (CORS, needed by hls.js)
+    probe('no-cors').then(function () {
+      return probe('cors').then(function () { return true; }, function () { return false; });
+    }, function () { return null; }).then(function (cors) {
+      if (cors === null) return toast('✘ Brak połączenia z ' + host + '. Sprawdź, czy silnik działa, adres/port oraz zaporę. Silnik na innym urządzeniu musi nasłuchiwać w LAN (--bind-all).', 10000);
+      if (cors) return toast('✔ Silnik odpowiada: ' + host + ' (CORS OK). ' + (native ? 'Przeglądarka gra HLS natywnie.' : 'HLS przez hls.js.'), 7000);
+      toast(native
+        ? '✔ Silnik odpowiada: ' + host + ', bez CORS – ta przeglądarka gra HLS natywnie, więc powinno działać.'
+        : '⚠ Silnik odpowiada (' + host + '), ale nie zezwala na CORS, a ta przeglądarka nie gra HLS natywnie (hls.js zostanie zablokowany). Użyj Safari/Chrome na Androidzie albo proxy z CORS.', 12000);
+    });
   };
   $('setCancel').onclick = function () { settings = Store.settings(); closeDialog(); };
   $('setOk').onclick = function () {
