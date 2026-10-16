@@ -185,7 +185,8 @@
   function playChannel(c) {
     if (!c) return;
     state.playing = c; state.playingUrl = c.url;
-    Player.play(Ace.resolve(c.url, settings));
+    state.lastUrl = Ace.resolve(c.url, settings);
+    Player.play(state.lastUrl);
     Store.saveLast({ id: state.playlist && state.playlist.id, url: c.url });
     showOsd();
     setMode('player');
@@ -243,7 +244,8 @@
   Player.onError(function (msg) {
     var hint = state.playing && Ace.isAce(state.playing.url) && Ace.isLocal(settings)
       ? ' – ustaw adres silnika Ace Stream w Ustawieniach (niebieski → Ustawienia)' : '';
-    toast('Błąd odtwarzania: ' + msg + hint, 7000);
+    var host = (state.lastUrl || '').replace(/^https?:\/\//, '').split('/')[0];
+    toast('Błąd odtwarzania: ' + msg + (host ? ' [' + host + ']' : '') + hint, 9000);
     if (state.mode === 'player') { setMode('browser'); setZone('channels'); }
   });
 
@@ -294,6 +296,19 @@
   $('setRefresh').onclick = function () {
     settings.epg = $('setEpg').value.trim(); Store.saveSettings(settings); closeDialog(); loadEpg(state.playlist, true);
   };
+  $('setTest').onclick = function () {
+    var host = ($('setEngine').value.trim() || '127.0.0.1:6878').replace(/^https?:\/\//i, '').replace(/\/+$/, '');
+    if (!window.fetch) return toast('Ten webOS nie obsługuje testu – spróbuj odtworzyć kanał', 4000);
+    toast('Łączenie z ' + host + '…', 8000);
+    var ctl = window.AbortController ? new AbortController() : null, t = setTimeout(function () { ctl && ctl.abort(); }, 6000);
+    // no-cors: we only care whether the TCP/HTTP connection succeeds, not about reading the reply
+    fetch('http://' + host + '/webui/api/service?method=get_version', { mode: 'no-cors', cache: 'no-store', signal: ctl && ctl.signal })
+      .then(function () { clearTimeout(t); toast('✔ Silnik Ace Stream odpowiada: ' + host, 5000); })
+      .catch(function () {
+        clearTimeout(t);
+        toast('✘ Brak połączenia z ' + host + '. Sprawdź adres/port, zaporę oraz czy silnik nasłuchuje w sieci LAN (nie tylko 127.0.0.1).', 9000);
+      });
+  };
   $('setCancel').onclick = function () { settings = Store.settings(); closeDialog(); };
   $('setOk').onclick = function () {
     var oldEpg = settings.epg;
@@ -313,7 +328,7 @@
 
   /* ---------- key handling ---------- */
   var dlgFocus = function () {
-    var order = state.dialog === 'Settings' ? ['setEngine', 'setEpg', 'setMode', 'setRefresh', 'setRestore', 'setOk', 'setCancel']
+    var order = state.dialog === 'Settings' ? ['setEngine', 'setEpg', 'setTest', 'setMode', 'setRefresh', 'setRestore', 'setOk', 'setCancel']
       : ['addName', 'addUrl', 'addText', 'addOk', 'addCancel'];
     return { order: order, i: order.indexOf(document.activeElement && document.activeElement.id) };
   };

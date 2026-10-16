@@ -30,6 +30,13 @@ Po zmianie pliku w `playlists/` uruchom `npm run build:playlist` (generuje `js/b
 - Dane (tylko dopasowane kanały, okno −1 h…+36 h) są cache'owane lokalnie 6 h; „Odśwież EPG” wymusza pobranie.
 - Pliki `.gz` wymagają `DecompressionStream` (nowsze webOS); na starszych użyj nieskompresowanego XML. Serwer EPG musi zezwalać na CORS.
 
+## Gdy kanały się nie łączą
+1. **Ustawienia → „Testuj silnik”** – sprawdza, czy pod podanym adresem w ogóle odpowiada Ace Stream Engine.
+2. Adres `127.0.0.1:6878` z playlisty działa tylko na urządzeniu, na którym stoi silnik. Na TV wpisz **IP komputera/boxa/NAS-a** z silnikiem.
+3. Silnik musi nasłuchiwać w LAN, a nie tylko na localhost: Ace Stream na PC uruchom z opcją `--bind-all` (albo użyj obrazu Docker z proxy HTTP) i otwórz port 6878 w zaporze.
+4. Pierwsze uruchomienie kanału może trwać 10–30 s (silnik szuka peerów). Komunikat błędu pokazuje, z którym hostem aplikacja próbowała się połączyć.
+5. W przeglądarce desktopowej HLS gra przez dołączone `hls.js` (ładowane tylko, gdy przeglądarka nie ma natywnego HLS; na webOS nie jest potrzebne). Tryb **TS** nie zadziała w Chrome/Firefox – używaj trybu HLS. Silnik musi zezwalać na CORS.
+
 ## Sterowanie bez strzałek (PC / mysz / Magic Remote w trybie wskaźnika)
 - **Mysz / wskaźnik:** klik w grupę, kanał, playlistę lub pozycję programu; kółko przewija listy (w odtwarzaczu zmienia kanał); klik w obraz pokazuje pasek informacji.
 - **Klawisze zamienne:** `W A S D` = strzałki, `Q`/`E` = strona w górę/w dół, `R G Y B` = czerwony/zielony/żółty/niebieski, `I` = info, `P` = play, `X` = stop, `Backspace`/`Esc` = Back, spacja = pauza. W polach tekstowych litery piszą się normalnie.
