@@ -37,6 +37,15 @@ Po zmianie pliku w `playlists/` uruchom `npm run build:playlist` (generuje `js/b
 4. Pierwsze uruchomienie kanału może trwać 10–30 s (silnik szuka peerów). Komunikat błędu pokazuje, z którym hostem aplikacja próbowała się połączyć.
 5. W przeglądarce desktopowej HLS gra przez dołączone `hls.js` (ładowane tylko, gdy przeglądarka nie ma natywnego HLS; na webOS nie jest potrzebne). Tryb **TS** nie zadziała w Chrome/Firefox – używaj trybu HLS. Silnik musi zezwalać na CORS.
 
+## Telefon (przeglądarka mobilna)
+Na małych ekranach (szerokość < 900 px) i urządzeniach dotykowych aplikacja przełącza się na układ mobilny; telewizor i duże ekrany zachowują układ pod pilota.
+- **Uruchomienie:** na komputerze w tej samej sieci Wi-Fi: `cd m3u-player && python3 -m http.server 8080`, potem na telefonie `http://IP_KOMPUTERA:8080`. „Dodaj do ekranu głównego” daje tryb aplikacji (manifest PWA).
+- **Obsługa:** lista kanałów przewijana palcem, wybór grupy z listy rozwijanej, dotknięcie kanału go uruchamia, dotknięcie obrazu pokazuje przyciski (lista, poprzedni/następny, ulubione, program TV, pełny ekran). Przycisk Wstecz w telefonie wraca z odtwarzacza do listy i zamyka okna. Ekran nie wygasa podczas odtwarzania (Wake Lock, jeśli przeglądarka go ma).
+- **Playlista z telefonu:** „＋ Dodaj playlistę” → „wybierz plik” (`.m3u`/`.m3u8`), adres URL albo wklejenie tekstu.
+- **Silnik Ace Stream:** w Ustawieniach wpisz `IP:6878` urządzenia z silnikiem (komputer/box w sieci, uruchomiony z `--bind-all`). Użyj „Testuj silnik”.
+- **HTTPS vs HTTP:** strona serwowana przez **HTTPS** (np. GitHub Pages) nie może ładować strumieni ani silnika po zwykłym `http://` (mixed content) – wtedy serwuj aplikację po `http://` z sieci lokalnej, jak wyżej.
+- Android Chrome gra HLS przez dołączone `hls.js`; iOS Safari ma natywny HLS (iOS nie testowane).
+
 ## Sterowanie bez strzałek (PC / mysz / Magic Remote w trybie wskaźnika)
 - **Mysz / wskaźnik:** klik w grupę, kanał, playlistę lub pozycję programu; kółko przewija listy (w odtwarzaczu zmienia kanał); klik w obraz pokazuje pasek informacji.
 - **Klawisze zamienne:** `W A S D` = strzałki, `Q`/`E` = strona w górę/w dół, `R G Y B` = czerwony/zielony/żółty/niebieski, `I` = info, `P` = play, `X` = stop, `Backspace`/`Esc` = Back, spacja = pauza. W polach tekstowych litery piszą się normalnie.

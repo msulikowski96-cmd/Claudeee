@@ -4,7 +4,9 @@
   var KEY = { LEFT: 37, UP: 38, RIGHT: 39, DOWN: 40, ENTER: 13, BACK: 461, ESC: 27, BS: 8,
     CH_UP: 427, CH_DN: 428, PGUP: 33, PGDN: 34, PLAY: 415, PAUSE: 19, STOP: 413, FF: 417, RW: 412,
     RED: 403, GREEN: 404, YELLOW: 405, BLUE: 406 };
+  var MOBILE = document.documentElement.classList.contains('mobile');
   var ROWS = 10;
+  var ALL = 1e9; // phone: render whole list and let the browser scroll it natively
   var SIDE = ['btnPlaylists', 'btnAdd', 'btnSettings'];
   var settings = Store.settings();
   var epg = null; // parsed XMLTV store for the current playlist
@@ -83,9 +85,10 @@
   List.prototype.render = function (focused) {
     if (this.idx < this.top) this.top = this.idx;
     if (this.idx >= this.top + this.rows) this.top = this.idx - this.rows + 1;
-    var html = '', end = Math.min(this.data.length, this.top + this.rows);
+    var html = '', end = Math.min(this.data.length, this.top + this.rows), st = this.el.scrollTop;
     for (var i = this.top; i < end; i++) html += this.renderRow(this.data[i], i, i === this.idx && this.focused);
     this.el.innerHTML = html;
+    if (this.rows === ALL) this.el.scrollTop = st; // keep touch-scroll position across re-renders
   };
   // pointer support: click picks a row, wheel scrolls
   List.prototype.bind = function (onPick) {
@@ -96,7 +99,7 @@
       self.idx = self.top + Array.prototype.indexOf.call(self.el.children, li);
       self.render(); onPick(self.cur());
     });
-    this.el.addEventListener('wheel', function (e) { e.preventDefault(); self.move(e.deltaY > 0 ? 3 : -3); if (self.onMove) self.onMove(); });
+    if (!MOBILE) this.el.addEventListener('wheel', function (e) { e.preventDefault(); self.move(e.deltaY > 0 ? 3 : -3); if (self.onMove) self.onMove(); });
   };
   List.prototype.focus = function (on) { this.focused = on; this.render(); };
   List.prototype.cur = function () { return this.data[this.idx]; };
@@ -104,14 +107,14 @@
   var groupList = new List($('groups'), ROWS, function (g, i, f) {
     return '<li class="' + (f ? 'focus' : '') + (g.id === state.group ? ' active' : '') + '"><span class="name">' + esc(g.name) + '</span><span class="num">' + g.count + '</span></li>';
   });
-  var chList = new List($('channels'), ROWS, function (c, i, f) {
+  var chList = new List($('channels'), MOBILE ? ALL : ROWS, function (c, i, f) {
     var fav = state.favs[c.url] ? '<span class="fav">★</span>' : '';
     var playing = c.url === state.playingUrl;
     return '<li class="' + (f ? 'focus' : '') + (playing ? ' active' : '') + '"><span class="num">' + (c.n) + '</span>' +
-      (c.logo ? '<img src="' + esc(c.logo) + '" onerror="this.style.visibility=\'hidden\'">' : '<img style="visibility:hidden">') +
+      (c.logo ? '<img src="' + esc(c.logo) + '" loading="lazy" onerror="this.style.display=\'none\'">' : '<img class="ph" style="visibility:hidden">') +
       '<span class="name"><span>' + esc(c.name) + '</span>' + epgLine(c) + '</span>' + fav + '</li>';
   });
-  var plList = new List($('plList'), 7, function (p, i, f) {
+  var plList = new List($('plList'), MOBILE ? ALL : 7, function (p, i, f) {
     return '<li class="' + (f ? 'focus' : '') + '"><span class="name">' + esc(p.name) + '</span><span class="num">' + (p.url ? 'URL' : 'tekst') + '</span></li>';
   });
 
@@ -159,7 +162,11 @@
     state.groups[1].count = state.items.filter(function (c) { return state.favs[c.url]; }).length;
     var i = 0; state.groups.forEach(function (g, n) { if (g.id === state.group) i = n; });
     groupList.set(state.groups, i);
+    $('groupSel').innerHTML = state.groups.map(function (g) {
+      return '<option value="' + esc(g.id) + '"' + (g.id === state.group ? ' selected' : '') + '>' + esc(g.name) + ' (' + g.count + ')</option>';
+    }).join('');
   }
+  $('groupSel').addEventListener('change', function () { state.group = this.value; groupList.render(); applyFilter(); $('channels').scrollTop = 0; });
 
   function applyFilter(keepIdx) {
     var q = state.filter.toLowerCase(), g = state.group;
@@ -212,15 +219,33 @@
     $('osdBar').style.display = p ? '' : 'none';
     if (p) $('osdBar').firstChild.style.width = Math.max(0, Math.min(100, (Date.now() - p[0]) / (p[1] - p[0]) * 100)) + '%';
     tick(); $('osd').classList.remove('hidden');
-    clearTimeout(osdT); osdT = setTimeout(function () { $('osd').classList.add('hidden'); }, 4000);
+    if (MOBILE) { $('ctl').classList.remove('hidden'); $('ctlFav').textContent = state.favs[c.url] ? '★' : '☆'; }
+    clearTimeout(osdT); osdT = setTimeout(hideOsd, 4000);
   }
+  function hideOsd() { $('osd').classList.add('hidden'); $('ctl').classList.add('hidden'); }
   function tick() { if (epg) { chList.render(); }  var d = new Date(); $('osdTime').textContent = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2); }
 
-  function setMode(m) {
+  // History: Android/iOS Back should leave the player or close a dialog instead of leaving the page.
+  var hist = 0, skipPop = 0;
+  function pushH() { if (!MOBILE) return; history.pushState({ m: 1 }, ''); hist++; }
+  function leaveH() { if (MOBILE && hist > 0) { hist--; skipPop++; history.back(); } }
+  window.addEventListener('popstate', function () {
+    if (skipPop > 0) { skipPop--; return; }
+    hist = Math.max(0, hist - 1);
+    if (state.dialog) closeDialog(true); else if (state.mode === 'player') setMode('browser', true);
+  });
+  var wake = null;
+  function requestWake() { try { if (navigator.wakeLock && !wake) navigator.wakeLock.request('screen').then(function (w) { wake = w; w.addEventListener('release', function () { wake = null; }); }, function () {}); } catch (e) {} }
+  function releaseWake() { try { if (wake) wake.release(); } catch (e) {} wake = null; }
+  document.addEventListener('visibilitychange', function () { if (!document.hidden && state.mode === 'player') requestWake(); });
+
+  function setMode(m, fromHist) {
+    if (m === 'player' && state.mode !== 'player') { pushH(); requestWake(); }
+    if (m === 'browser' && state.mode === 'player' && !fromHist) leaveH();
     state.mode = m;
     if (m === 'player' && document.activeElement && document.activeElement.blur) document.activeElement.blur();
     $('browser').classList.toggle('hidden', m === 'player');
-    if (m === 'browser') { $('osd').classList.add('hidden'); chList.render(); setZone(state.zone); }
+    if (m === 'browser') { hideOsd(); releaseWake(); chList.render(); setZone(state.zone); }
   }
 
   function toggleFav(c) {
@@ -250,7 +275,7 @@
   });
 
   /* ---------- program guide ---------- */
-  var guideList = new List($('guideList'), 7, function (p, i, f) {
+  var guideList = new List($('guideList'), MOBILE ? ALL : 7, function (p, i, f) {
     return '<li class="' + (f ? 'focus' : '') + (i === 0 && p[0] <= Date.now() ? ' active' : '') + '"><span class="num">' + hm(p[0]) + '</span><span class="name"><span>' + esc(p[2]) + '</span></span></li>';
   });
   guideList.bind(function () { guideDesc(); });
@@ -266,19 +291,21 @@
 
   /* ---------- dialogs ---------- */
   function openDialog(name) {
+    if (!state.dialog) pushH();
     state.dialog = name; $('dlg' + name).classList.remove('hidden');
     if (name === 'Add') { $('addName').focus(); }
     if (name === 'Settings') { $('setEngine').value = settings.engine; $('setEpg').value = settings.epg; renderMode(); $('setEngine').focus(); }
     if (name === 'Playlists') { plList.set(Store.playlists()); plList.focus(true); }
   }
-  function closeDialog() {
+  function closeDialog(fromHist) {
     if (!state.dialog) return;
+    if (fromHist !== true) leaveH();
     $('dlg' + state.dialog).classList.add('hidden'); state.dialog = null;
     if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
     setZone(state.zone);
   }
-  $('addCancel').onclick = closeDialog;
-  $('plClose').onclick = closeDialog;
+  $('addCancel').onclick = function () { closeDialog(); };
+  $('plClose').onclick = function () { closeDialog(); };
   $('addOk').onclick = function () {
     var name = $('addName').value.trim(), url = $('addUrl').value.trim(), text = $('addText').value.trim();
     if (!url && !text) return toast('Podaj adres URL lub wklej zawartość');
@@ -455,6 +482,27 @@
   // webOS "back" may arrive as a history event on some firmware
   document.addEventListener('webOSRelaunch', function () { window.focus && window.focus(); });
   setInterval(tick, 30000);
+
+  /* ---------- phone: file picker, touch controls ---------- */
+  $('addFile').addEventListener('change', function () {
+    var f = this.files && this.files[0]; if (!f) return;
+    var r = new FileReader();
+    r.onload = function () { $('addText').value = String(r.result); $('addUrl').value = ''; if (!$('addName').value) $('addName').value = f.name.replace(/\.[^.]+$/, ''); toast('Wczytano plik: ' + f.name, 2500); };
+    r.onerror = function () { toast('Nie udało się odczytać pliku'); };
+    r.readAsText(f);
+  });
+  $('ctlBack').onclick = function () { setMode('browser'); };
+  $('ctlPrev').onclick = function () { zap(-1); };
+  $('ctlNext').onclick = function () { zap(1); };
+  $('ctlFav').onclick = function () { toggleFav(state.playing); };
+  $('ctlGuide').onclick = function () { openGuide(state.playing); };
+  $('ctlFs').onclick = function () {
+    var d = document, el = d.documentElement;
+    if (d.fullscreenElement || d.webkitFullscreenElement) return (d.exitFullscreen || d.webkitExitFullscreen).call(d);
+    var go = el.requestFullscreen || el.webkitRequestFullscreen; if (!go) return toast('Pełny ekran niedostępny w tej przeglądarce', 2500);
+    var p = go.call(el); var lock = function () { try { screen.orientation.lock('landscape').catch(function () {}); } catch (e) {} };
+    p && p.then ? p.then(lock, function () {}) : lock();
+  };
 
   /* ---------- boot ---------- */
   var pls = Store.playlists(), last = Store.last();

@@ -1,5 +1,6 @@
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{width:1920px;height:1080px;overflow:hidden;background:#000;color:#fff;font-family:"LG Smart UI",Arial,sans-serif;font-size:28px}
+html:not(.mobile),html:not(.mobile) body{width:1920px;height:1080px}
+html,body{overflow:hidden;background:#000;color:#fff;font-family:"LG Smart UI",Arial,sans-serif;font-size:28px}
 video{position:fixed;inset:0;width:100%;height:100%;background:#000;object-fit:contain}
 .hidden{display:none!important}
 .screen{position:fixed;inset:0;display:flex;background:rgba(10,14,24,.96)}
@@ -51,3 +52,59 @@ button.nav,input.nav,textarea.nav{background:#1c2536;color:#fff;font-size:28px;p
 #osdBar i{display:block;height:100%;width:0;background:#4fc3f7}
 #guideList li .num{width:90px;text-align:left;color:#4fc3f7}
 #guideDesc{min-height:130px;max-height:130px;overflow:hidden;color:#b0bec5;font-size:24px;line-height:1.35}
+
+#groupSel,#ctl,#addFile{display:none}
+#ctl button{background:rgba(20,27,43,.85);color:#fff;border:2px solid rgba(255,255,255,.25);border-radius:50%;width:56px;height:56px;font-size:24px;font-family:inherit}
+#ctl button:active{background:#4fc3f7;color:#000}
+
+/* ---------- phone layout ---------- */
+html.mobile,html.mobile body{width:100%;height:100%;height:100dvh;font-size:16px;overflow:hidden;position:fixed;inset:0;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
+html.mobile .screen{flex-direction:column}
+html.mobile #sidebar{width:100%;flex-direction:row;align-items:center;padding:calc(env(safe-area-inset-top) + 8px) 12px 8px;gap:8px}
+html.mobile #sidebar h1{font-size:20px;margin:0}
+html.mobile #groups,html.mobile #hint{display:none}
+html.mobile .side-actions{flex-direction:row;gap:6px;margin-left:auto}
+html.mobile button.nav,html.mobile input.nav,html.mobile textarea.nav,html.mobile #groupSel,html.mobile #addFile{font-size:16px;padding:9px 12px;border-radius:8px;background:#1c2536;color:#fff;font-family:inherit}
+html.mobile .side-actions .lbl{display:none}
+html.mobile .side-actions .ic{font-size:20px}
+html.mobile main{padding:0 10px calc(env(safe-area-inset-bottom) + 6px);min-height:0}
+html.mobile #toolbar{gap:8px;margin-bottom:8px;flex-wrap:wrap}
+html.mobile #groupSel{display:block;flex:1 1 100%;border:2px solid transparent}
+html.mobile #search{flex:1 1 0;min-width:0}
+html.mobile #count{font-size:13px}
+html.mobile #channels{overflow-y:auto;-webkit-overflow-scrolling:touch;flex:1;min-height:0}
+html.mobile .list li{height:58px;gap:12px;padding:0 8px;font-size:17px;border-radius:8px}
+html.mobile .list li img{width:56px;height:38px}
+html.mobile .list li .num{width:34px;font-size:13px}
+html.mobile .list li .name .epg{font-size:12px}
+html.mobile .list li.active{background:rgba(79,195,247,.12)}
+html.mobile .focus,html.mobile .nav:focus{background:transparent!important}
+html.mobile .list li.focus{border-color:transparent!important}
+html.mobile input.nav:focus,html.mobile textarea.nav:focus,html.mobile #groupSel:focus{border-color:#4fc3f7!important}
+html.mobile #osd{left:10px;right:10px;bottom:calc(env(safe-area-inset-bottom) + 84px);padding:10px 14px;gap:12px;border-radius:12px}
+html.mobile #osd img{width:56px;height:38px}
+html.mobile #osdTitle{font-size:18px}
+html.mobile #osdSub{font-size:13px}
+html.mobile #osdEpg{font-size:14px;white-space:normal;margin-top:4px}
+html.mobile #osdTime{font-size:16px}
+html.mobile #ctl{position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom) + 14px);display:flex;justify-content:center;gap:14px;z-index:5}
+html.mobile #ctl.hidden{display:none}
+html.mobile #spinner{width:56px;height:56px;margin:-28px;border-width:6px}
+html.mobile #toast{top:calc(env(safe-area-inset-top) + 12px);max-width:92vw;padding:10px 16px;font-size:14px;z-index:20}
+html.mobile .dialog{align-items:flex-start;overflow-y:auto}
+html.mobile .box{width:100%;max-width:100%;max-height:none;min-height:100%;border-radius:0;padding:calc(env(safe-area-inset-top) + 16px) 16px 24px;gap:12px}
+html.mobile .box label{font-size:14px}
+html.mobile #addFile{display:block;width:100%}
+html.mobile .row{flex-wrap:wrap}
+html.mobile .row button{flex:1 1 auto}
+html.mobile .small{font-size:12px}
+html.mobile #plList{max-height:none}
+html.mobile #guideDesc{min-height:90px;max-height:none;font-size:15px}
+html.mobile #guideList,html.mobile #plList{max-height:46vh;overflow-y:auto}
+html.mobile{touch-action:manipulation}
+html.mobile .ph{display:none}
+html.mobile .list li .name{min-width:0;flex:1}
+html.mobile .list li .name>span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+html.mobile #ctl{gap:10px}
+html.mobile #ctl button{width:48px;height:48px;font-size:20px}
+html.mobile #toast{top:calc(env(safe-area-inset-top) + 64px)}
