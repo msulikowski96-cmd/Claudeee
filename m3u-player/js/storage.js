@@ -11,7 +11,7 @@ var Store = (function () {
     saveLast: function (l) { set('last', l); },
     settings: function () {
       var d = get('settings', {});
-      return { engine: d.engine || '127.0.0.1:6878', aceMode: d.aceMode || 'hls', epg: d.epg || '', seeded: !!d.seeded };
+      return { engine: d.engine || '127.0.0.1:6878', aceMode: d.aceMode || 'hls', epg: d.epg || '' };
     },
     saveSettings: function (s) { set('settings', s); },
     epgCache: function (id) { return get('epg.' + id, null); },
