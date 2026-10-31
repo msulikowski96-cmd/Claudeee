@@ -15,7 +15,11 @@
   var tv = /Web0S|webOS|SmartTV/i.test(navigator.userAgent);
   var small = window.innerWidth < 900;
   var touch = window.matchMedia && matchMedia('(pointer:coarse)').matches;
-  if (!tv && (small || (touch && window.innerWidth < 1200))) document.documentElement.className = 'mobile';
+  if (!tv && (small || (touch && window.innerWidth < 1200))) { document.documentElement.className = 'mobile'; return; }
+  // TV / large screens: the layout is authored at 1920x1080 and scaled to the real window
+  // (webOS FHD models give web apps a 1280x720 plane, UHD models 1920x1080).
+  var fit = function () { document.documentElement.style.zoom = Math.min(window.innerWidth / 1920, window.innerHeight / 1080); };
+  fit(); window.addEventListener('resize', fit);
 })();
 </script>
 <link rel="stylesheet" href="css/style.css">
@@ -73,7 +77,7 @@
     <h2>Dodaj playlistę</h2>
     <label>Nazwa<input id="addName" class="nav" type="text" placeholder="Moja lista"></label>
     <label>Adres URL (M3U / M3U8)<input id="addUrl" class="nav" type="url" placeholder="http://…/playlist.m3u"></label>
-    <label>…lub wybierz plik z telefonu<input id="addFile" type="file" accept=".m3u,.m3u8,.txt,audio/x-mpegurl,application/vnd.apple.mpegurl,text/plain"></label>
+    <label class="mobile-only">…lub wybierz plik z telefonu<input id="addFile" type="file" accept=".m3u,.m3u8,.txt,audio/x-mpegurl,application/vnd.apple.mpegurl,text/plain"></label>
     <label>…lub wklej zawartość<textarea id="addText" class="nav" rows="4" placeholder="#EXTM3U&#10;#EXTINF:-1,Kanał&#10;http://…"></textarea></label>
     <div class="row">
       <button class="nav" id="addOk">Zapisz i wczytaj</button>
@@ -84,7 +88,7 @@
 <div id="dlgSettings" class="dialog hidden">
   <div class="box">
     <h2>Ustawienia</h2>
-    <label>Adres silnika Ace Stream (IP:port) – komputer / box w sieci domowej, NIE telewizor
+    <label>Opcjonalnie: adres silnika Ace Stream (IP:port) – tylko dla playlist z linkami Ace Stream
       <input id="setEngine" class="nav" type="text" placeholder="192.168.1.50:6878"></label>
     <label>Adres EPG (XMLTV, .xml / .xml.gz) – puste = z nagłówka playlisty (url-tvg)
       <input id="setEpg" class="nav" type="url" placeholder="http://…/epg.xml.gz"></label>
@@ -92,13 +96,13 @@
       <button class="nav" id="setTest">Testuj silnik</button>
       <button class="nav" id="setMode"></button>
       <button class="nav" id="setRefresh">Odśwież EPG</button>
-      <button class="nav" id="setRestore">Przywróć wbudowaną playlistę</button>
     </div>
     <div class="row">
       <button class="nav" id="setOk">Zapisz</button>
       <button class="nav" id="setCancel">Anuluj</button>
     </div>
     <div class="small">HLS – zalecany na webOS · TS – surowy strumień (getstream)</div>
+    <div class="small">Prywatność: aplikacja nie zbiera ani nie wysyła żadnych danych osobowych. Playlisty, ulubione i ustawienia są zapisane wyłącznie na tym urządzeniu; aplikacja łączy się tylko z adresami, które podasz.</div>
   </div>
 </div>
 <div id="dlgGuide" class="dialog hidden">
@@ -114,11 +118,10 @@
     <h2>Zapisane playlisty</h2>
     <ul id="plList" class="list"></ul>
     <div class="row"><button class="nav" id="plClose">Zamknij</button></div>
-    <div class="small">OK – wczytaj · CZERWONY – usuń</div>
+    <div class="small">OK – wczytaj · CZERWONY lub ✕ – usuń</div>
   </div>
 </div>
 
-<script src="js/builtin.js"></script>
 <script src="js/parser.js"></script>
 <script src="js/ace.js"></script>
 <script src="js/epg.js"></script>

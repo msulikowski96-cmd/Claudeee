@@ -27,10 +27,14 @@ assert.strictEqual(Ace.resolve(u, { engine: '192.168.1.5:6878', aceMode: 'hls' }
 assert.strictEqual(Ace.resolve(u, { engine: 'http://10.0.0.2:6878/', aceMode: 'ts' }), 'http://10.0.0.2:6878/ace/getstream?infohash=abc&pid=1');
 assert.strictEqual(Ace.resolve('acestream://deadbeef', { engine: 'h:1', aceMode: 'hls' }), 'http://h:1/ace/manifest.m3u8?id=deadbeef');
 assert.strictEqual(Ace.resolve('http://x/y.m3u8', { engine: 'h:1' }), 'http://x/y.m3u8');
-const pl = M3U.autoGroup(M3U.parse(require('fs').readFileSync(__dirname + '/../playlists/polska_ace_stream2.m3u8', 'utf8')));
-assert.strictEqual(pl.length, 61);
+// playlist without group-title: groups are guessed from channel names
+const names = ['Poland - Krupowki', 'Polsat Sport', 'TVN 24', 'MTV Music', 'Kino Polska', 'TVP 1 HD', 'TVN', 'Polsat HD', 'Something Else'];
+const pl = M3U.autoGroup(M3U.parse('#EXTM3U\n' + names.map((n, i) => `#EXTINF:-1,${n}\nhttp://x/${i}`).join('\n')));
+assert.strictEqual(pl.length, names.length);
 const g = Object.fromEntries(M3U.groups(pl).map(x => [x.name, x.count]));
-assert.ok(g['Kamery PL'] >= 10 && g['Sport'] >= 7 && !g['Bez grupy'], JSON.stringify(g));
+assert.deepStrictEqual(g, { 'Kamery PL': 1, 'Sport': 1, 'Informacje': 1, 'Muzyka': 1, 'Filmy i seriale': 1, 'TVP': 1, 'TVN': 1, 'Polsat': 1, 'Inne': 1 });
+// playlists with group-title keep their own groups
+assert.strictEqual(M3U.autoGroup(M3U.parse('#EXTM3U\n#EXTINF:-1 group-title="A",TVN\nhttp://x/1\n'))[0].group, 'A');
 console.log('ace + autoGroup OK', JSON.stringify(g));
 
 // ---- EPG ----

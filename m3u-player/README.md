@@ -1,7 +1,8 @@
 # M3U Player dla LG webOS TV
 
 Pełna aplikacja webOS (vanilla JS, bez zależności) do odtwarzania playlist M3U/M3U8.
-Przeznaczona do instalacji na telewizorze z [webOS Brew / Homebrew Channel](https://www.webosbrew.org/).
+Działa na telewizorach LG webOS (instalacja w trybie dewelopera lub przez LG Content Store), w przeglądarce na telefonie i na komputerze.
+Materiały do zgłoszenia w LG Seller Lounge: [`store/SUBMISSION.md`](store/SUBMISSION.md).
 
 ## Funkcje
 - Parser M3U/M3U8 (`tvg-logo`, `group-title`, `tvg-id`, `#EXTGRP`, `#EXTVLCOPT`)
@@ -10,18 +11,16 @@ Przeznaczona do instalacji na telewizorze z [webOS Brew / Homebrew Channel](http
 - Natywne odtwarzanie HLS / TS / MP4 w `<video>`, OSD, przełączanie kanałów
 - Pełna obsługa pilota Magic Remote
 
-## Playlista Ace Stream (wbudowana)
-Aplikacja zawiera playlistę `playlists/polska_ace_stream2.m3u8` (61 kanałów, wczytywana przy pierwszym uruchomieniu,
-automatycznie pogrupowana: TVP, TVN, Polsat, Sport, Informacje, Muzyka, Filmy i seriale, Kamery PL, Inne).
+## Własna playlista użytkownika
+Aplikacja nie zawiera żadnych kanałów. Przy pierwszym uruchomieniu pokazuje ekran „Nie masz jeszcze żadnej playlisty”; OK otwiera okno **Dodaj playlistę**:
+- **adres URL** pliku M3U/M3U8 (np. `http://…/playlista.m3u`; brak `http://` jest dopisywany),
+- **wklejona treść** playlisty,
+- **plik** z telefonu (tylko w przeglądarce mobilnej).
 
-Adresy w tej playliście wskazują `127.0.0.1:6878` – czyli silnik Ace Stream na **tym samym urządzeniu**.
-Na telewizorze nie ma silnika, więc:
-1. Uruchom Ace Stream Engine na komputerze / Android boxie / NAS w tej samej sieci (port 6878, dostęp z LAN).
-2. W aplikacji: **Ustawienia → adres silnika** (np. `192.168.1.50:6878`).
-3. Tryb **HLS** (domyślny, `/ace/manifest.m3u8`) jest natywnie odtwarzany przez webOS; **TS** używa `/ace/getstream`.
+Playlisty z adresu są pobierane przy każdym wczytaniu (z kopią offline). Można mieć wiele playlist; „☰ Playlisty” przełącza między nimi, ✕ lub CZERWONY usuwa.
 
-Obsługiwane są też linki `acestream://<id>`. Własne playliście dodasz przyciskiem „+ Dodaj playlistę”.
-Po zmianie pliku w `playlists/` uruchom `npm run build:playlist` (generuje `js/builtin.js`).
+### Playlisty z linkami Ace Stream (opcjonalnie)
+Linki `http://127.0.0.1:6878/ace/...` i `acestream://` wymagają silnika Ace Stream na innym urządzeniu w sieci: wpisz jego `IP:6878` w **Ustawieniach** i użyj „Testuj silnik”. Tryb **HLS** (`/ace/manifest.m3u8`) gra natywnie na webOS; **TS** używa `/ace/getstream`.
 
 ## EPG (program TV)
 - Źródło: **Ustawienia → Adres EPG** (XMLTV, `.xml` lub `.xml.gz`). Gdy puste, używany jest `url-tvg` / `x-tvg-url` z nagłówka playlisty.
@@ -74,12 +73,13 @@ ares-novacom --device tv --getkey  # pobranie klucza SSH (passphrase z aplikacji
 ## Budowa i instalacja
 ```sh
 npm test                 # test parsera
-npm run package          # ares-package . -> com.webosbrew.m3uplayer_1.0.0_all.ipk
+npm run package          # -> dist/com.msulikowski96.m3uplayer_1.1.0_all.ipk
 npm run install-tv       # ares-install na urządzeniu "tv"
 npm run launch           # uruchom
 npm run inspect          # debugger w Chrome DevTools
 ```
-Pliki z `.aresignore` (testy, README) nie trafiają do paczki.
+Do paczki trafiają tylko pliki aplikacji (`tools/package.sh`), bez testów, README i katalogu `store/`.
+Układ TV jest projektowany w 1920×1080 i skalowany do okna (modele Full HD dają aplikacjom 1280×720).
 
 ## Uwagi
 - Pobieranie playlist z sieci używa XHR; serwer musi pozwalać na CORS albo użyj opcji wklejenia treści.

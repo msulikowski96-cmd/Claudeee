@@ -87,6 +87,7 @@
     if (this.idx >= this.top + this.rows) this.top = this.idx - this.rows + 1;
     var html = '', end = Math.min(this.data.length, this.top + this.rows), st = this.el.scrollTop;
     for (var i = this.top; i < end; i++) html += this.renderRow(this.data[i], i, i === this.idx && this.focused);
+    if (!this.data.length && this.empty) html = this.empty(this.focused);
     this.el.innerHTML = html;
     if (this.rows === ALL) this.el.scrollTop = st; // keep touch-scroll position across re-renders
   };
@@ -115,8 +116,30 @@
       '<span class="name"><span>' + esc(c.name) + '</span>' + epgLine(c) + '</span>' + fav + '</li>';
   });
   var plList = new List($('plList'), MOBILE ? ALL : 7, function (p, i, f) {
-    return '<li class="' + (f ? 'focus' : '') + '"><span class="name">' + esc(p.name) + '</span><span class="num">' + (p.url ? 'URL' : 'tekst') + '</span></li>';
+    var on = state.playlist && state.playlist.id === p.id;
+    return '<li class="' + (f ? 'focus' : '') + (on ? ' active' : '') + '"><span class="name">' + esc(p.name) + '</span><span class="num">' + (p.url ? 'URL' : 'tekst') +
+      '</span><span class="del" title="Usuń">✕</span></li>';
   });
+  plList.empty = function () { return '<li class="none"><span class="name">Brak zapisanych playlist</span></li>'; };
+  function deletePlaylist(p) {
+    if (!p) return;
+    var all = Store.playlists().filter(function (x) { return x.id !== p.id; });
+    Store.savePlaylists(all);
+    try { localStorage.removeItem('m3u.cache.' + p.id); localStorage.removeItem('m3u.epg.' + p.id); } catch (e) {}
+    plList.set(all, plList.idx); toast('Usunięto playlistę: ' + p.name, 2000);
+    if (state.playlist && state.playlist.id === p.id) {
+      state.playlist = null; epg = null; Store.saveLast({});
+      if (state.mode === 'player') { Player.stop(); state.playing = state.playingUrl = null; }
+      if (all.length) loadPlaylist(all[0]); else showEmpty();
+    }
+  }
+  // ✕ on a row deletes instead of loading (capture phase runs before the row's pick handler)
+  $('plList').addEventListener('click', function (e) {
+    if (!e.target.classList || !e.target.classList.contains('del')) return;
+    e.stopPropagation();
+    var li = e.target.parentNode, i = Array.prototype.indexOf.call(this.children, li) + plList.top;
+    deletePlaylist(plList.data[i]);
+  }, true);
 
   /* ---------- playlist loading ---------- */
   function fetchText(url, cb) {
@@ -309,17 +332,13 @@
   $('addOk').onclick = function () {
     var name = $('addName').value.trim(), url = $('addUrl').value.trim(), text = $('addText').value.trim();
     if (!url && !text) return toast('Podaj adres URL lub wklej zawartość');
+    if (url && !/^https?:\/\//i.test(url)) url = 'http://' + url;
     var pl = { id: 'pl' + Date.now(), name: name || (url ? url.replace(/^https?:\/\//, '').split('/')[0] : 'Playlista'), url: url, text: url ? '' : text };
     var all = Store.playlists(); all.push(pl); Store.savePlaylists(all);
     closeDialog(); loadPlaylist(pl);
   };
   function renderMode() { $('setMode').textContent = 'Tryb Ace: ' + (settings.aceMode === 'ts' ? 'TS (getstream)' : 'HLS (manifest)'); }
   $('setMode').onclick = function () { settings.aceMode = settings.aceMode === 'ts' ? 'hls' : 'ts'; renderMode(); };
-  $('setRestore').onclick = function () {
-    var all = Store.playlists();
-    BUILTIN_PLAYLISTS.forEach(function (b) { if (!all.some(function (p) { return p.id === b.id; })) all.push(b); });
-    Store.savePlaylists(all); toast('Przywrócono wbudowane playlisty', 2000);
-  };
   $('setRefresh').onclick = function () {
     settings.epg = $('setEpg').value.trim(); Store.saveSettings(settings); closeDialog(); loadEpg(state.playlist, true);
   };
@@ -363,7 +382,7 @@
 
   /* ---------- key handling ---------- */
   var dlgFocus = function () {
-    var order = state.dialog === 'Settings' ? ['setEngine', 'setEpg', 'setTest', 'setMode', 'setRefresh', 'setRestore', 'setOk', 'setCancel']
+    var order = state.dialog === 'Settings' ? ['setEngine', 'setEpg', 'setTest', 'setMode', 'setRefresh', 'setOk', 'setCancel']
       : ['addName', 'addUrl', 'addText', 'addOk', 'addCancel'];
     return { order: order, i: order.indexOf(document.activeElement && document.activeElement.id) };
   };
@@ -381,9 +400,7 @@
       if (k === KEY.UP) plList.move(-1); else if (k === KEY.DOWN) plList.move(1);
       else if (k === KEY.ENTER) { var p = plList.cur(); if (p) { closeDialog(); loadPlaylist(p); } else closeDialog(); }
       else if (k === KEY.RED) {
-        var p2 = plList.cur(); if (!p2) return true;
-        var all = Store.playlists().filter(function (x) { return x.id !== p2.id; }); Store.savePlaylists(all);
-        plList.set(all, plList.idx); toast('Usunięto playlistę', 1500);
+        deletePlaylist(plList.cur());
       }
       return true;
     }
@@ -445,7 +462,7 @@
     else if (k === KEY.DOWN) chList.move(1);
     else if (k === KEY.PGUP) chList.move(-ROWS); else if (k === KEY.PGDN) chList.move(ROWS);
     else if (k === KEY.LEFT) setZone('groups');
-    else if (k === KEY.ENTER) playChannel(chList.cur());
+    else if (k === KEY.ENTER) { if (!state.items.length) openDialog('Add'); else playChannel(chList.cur()); }
     else if (k === KEY.PLAY && state.playing) setMode('player');
   }
 
@@ -512,15 +529,28 @@
     p && p.then ? p.then(lock, function () {}) : lock();
   };
 
+  /* ---------- first run: no playlist yet ---------- */
+  chList.empty = function (focused) {
+    if (state.items.length) return '<li class="none"><span class="name">Brak kanałów dla tego filtra</span></li>';
+    return '<li class="empty' + (focused ? ' focus' : '') + '"><div><b>Nie masz jeszcze żadnej playlisty</b>' +
+      '<span>' + (MOBILE ? 'Dotknij, aby dodać własną playlistę M3U / M3U8 – podaj jej adres URL, wybierz plik lub wklej treść.'
+        : 'Naciśnij OK, aby dodać własną playlistę M3U / M3U8 – wpisz jej adres URL (np. http://…/playlista.m3u) albo wklej treść.') + '</span>' +
+      '<span class="btn">＋ Dodaj playlistę</span></div></li>';
+  };
+  function showEmpty() {
+    state.items = []; state.view = []; state.groups = [];
+    $('count').textContent = '';
+    groupList.set([]); $('groupSel').innerHTML = '';
+    chList.set([]); setZone('channels');
+  }
+  $('channels').addEventListener('click', function (e) {
+    if (!state.items.length && e.target.closest && e.target.closest('.empty')) openDialog('Add');
+  });
+
   /* ---------- boot ---------- */
   var pls = Store.playlists(), last = Store.last();
-  if (!settings.seeded) {
-    BUILTIN_PLAYLISTS.forEach(function (b) { if (!pls.some(function (p) { return p.id === b.id; })) pls.push(b); });
-    Store.savePlaylists(pls); settings.seeded = true; Store.saveSettings(settings);
-  }
   var start = pls.filter(function (p) { return p.id === last.id; })[0] || pls[0];
   setMode('browser'); setZone('channels');
   if (start) loadPlaylist(start);
-  else { toast('Dodaj pierwszą playlistę (przycisk w lewym menu)', 6000); setZone('btnAdd'); }
-  if (start && start.builtin && Ace.isLocal(settings)) toast('Ustaw adres silnika Ace Stream: Ustawienia w lewym menu', 8000);
+  else showEmpty();
 })();
